@@ -80,9 +80,20 @@ class DocumentEncoder(nn.Module):
         self.glove.weight.data.copy_(glove_weights)
         self.glove.weight.requires_grad = False
 
-        # Character
-        self.char_embeddings = CharCNN(char_filters)  # Create char nn layer
-        pass
+        # Character embedding
+        self.char_embeddings = CharCNN(char_filters)  # Create char nn layer for a sentence
+
+        # Sentence-LSTM
+        self.lstm = nn.LSTM(glove_weights.shape[1] + char_filters,
+                            hidden_dim,
+                            num_layers=n_layers,
+                            bidirectional=True,
+                            batch_first=True)
+
+        # Dropout
+        self.emb_dropout = nn.Dropout(0.50, inplace=True)
+        self.lstm_dropout = nn.Dropout(0.20, inplace=True)
+
 
 
 class CorefModel(nn.Module):
@@ -105,7 +116,7 @@ class CorefModel(nn.Module):
             self.gij_dim = self.gi_dim * 3 + self.distance_dim
 
             logger.info(f"For Bi-LSTM encoder: span_dim is {self.gi_dim}, pairs_dim is {self.gij_dim}")
-            self.encoder = DocumentEncoder(embed_dim, char_filters)
+            self.encoder = DocumentEncoder(hidden_dim, char_filters)
             # self.score_spans = MentionScore(self.gi_dim, embed_dim, self.distance_dim)
             # self.score_pairs = PairwiseScore(self.gij_dim, distance_dim)
         else:
