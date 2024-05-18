@@ -20,6 +20,7 @@ class DocumentEncoder(nn.Module):
         #  Unit vector embeddings >>> normalization
         logger.info("Start normalizing glove weights.")
         glove_weights = F.normalize(GLOVE.weights())
+        pass
 
 
 class CorefModel(nn.Module):
