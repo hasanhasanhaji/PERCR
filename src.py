@@ -1,7 +1,8 @@
 import logging
-import torch
+
 import torch.nn as nn
 import torch.nn.functional as F
+
 from conll_mehr import *
 from utils import *
 
@@ -12,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class CharCNN(nn.Module):
     """ Character-level CNN. Contains character embeddings.
+    Give a sentence then return character embeddings.
     """
 
     unk_idx = 1
