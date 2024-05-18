@@ -4,6 +4,7 @@ import os
 import re
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
 
 from conll_mehr import *
 from utils import *
@@ -150,7 +151,6 @@ class Trainer:
                  steps, lr=1e-3):
         self.__dict__.update(locals())
         self.train_corpus = list(self.train_corpus)
-        self.val_corpus = self.val_corpus
 
         self.model = to_cuda(model)
 
@@ -161,33 +161,59 @@ class Trainer:
         #                                            step_size=100,
         #                                            gamma=0.001)
 
-        def train(self, num_epochs, eval_interval=10, *args, **kwargs):
-            """ Training  the model """
+    def train(self, num_epochs, eval_interval=10, *args, **kwargs):
+        """ Training  the model """
 
-            for epoch in range(1, num_epochs + 1):
-                self.train_epoch(epoch, *args, **kwargs)
+        for epoch in range(1, num_epochs + 1):
+            self.train_epoch(epoch, *args, **kwargs)
 
-                # self.save_model(str(datetime.now()))
-                #
-                # # Evaluate every eval_interval epochs
-                # if epoch % eval_interval == 0:
-                #     print('\n\nEVALUATION\n\n')
-                #     self.model.eval()
-                #     results = self.evaluate(self.val_corpus)
-                #     print(results)
+            # self.save_model(str(datetime.now()))
+            #
+            # # Evaluate every eval_interval epochs
+            # if epoch % eval_interval == 0:
+            #     print('\n\nEVALUATION\n\n')
+            #     self.model.eval()
+            #     results = self.evaluate(self.val_corpus)
+            #     print(results)
 
-        def train_epoch(self, epoch):
-            """ Run a training epoch over 'steps' documents """
-            # Set model to train (enables dropout)
-            self.model.train()
+    def train_epoch(self, epoch):
+        """ Run a training epoch over 'steps' documents """
+        # Set model to train (enables dropout)
+        self.model.train()
 
-            # Randomly sample documents from the train corpus
-            batch = random.sample(self.train_corpus, self.steps)
+        # Randomly sample documents from the train corpus
+        batch = random.sample(self.train_corpus, self.steps)
 
-            epoch_loss, epoch_mentions, epoch_corefs, epoch_identified = [], [], [], []
+        epoch_loss, epoch_mentions, epoch_corefs, epoch_identified = [], [], [], []
 
-            for document in tqdm(batch):
-                
+        for document in tqdm(batch):
+            # Randomly truncate document to up to 50 sentences
+            doc = document.truncate()
+            pass
+            # Compute loss, number gold links found, total gold links
+            loss, mentions_found, total_mentions, \
+                corefs_found, total_corefs, corefs_chosen = self.train_doc(doc)
+            #
+            # # Track stats by document for debugging
+            # print(document, '| Loss: %f | Mentions: %d/%d | Coref recall: %d/%d | Corefs precision: %d/%d' \
+            #       % (loss, mentions_found, total_mentions,
+            #          corefs_found, total_corefs, corefs_chosen, total_corefs))
+            #
+            # epoch_loss.append(loss)
+            # epoch_mentions.append(safe_divide(mentions_found, total_mentions))
+            # epoch_corefs.append(safe_divide(corefs_found, total_corefs))
+            # epoch_identified.append(safe_divide(corefs_chosen, total_corefs))
+
+        # # Step the learning rate decrease scheduler
+        # self.scheduler.step()
+        #
+        # print('Epoch: %d | Loss: %f | Mention recall: %f | Coref recall: %f | Coref precision: %f' \
+        #         % (epoch, np.mean(epoch_loss), np.mean(epoch_mentions),
+        #             np.mean(epoch_corefs), np.mean(epoch_identified)))
+
+    def train_doc(self, document):
+        """ Compute loss for a forward pass over a document """
+        pass
 
 
 if __name__ == "__main__":
