@@ -188,6 +188,7 @@ class Trainer:
 
         for document in tqdm(batch):
             # Randomly truncate document to up to 50 sentences
+            pass
             doc = document.truncate()
             pass
             # Compute loss, number gold links found, total gold links

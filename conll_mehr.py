@@ -8,7 +8,7 @@ import re
 from utils import flatten
 from cached_property import cached_property
 from copy import deepcopy as c
-
+from boltons.iterutils import pairwise
 
 class LazyVectors:
     """Load only those vectors from GloVE that are in the vocab.
@@ -131,13 +131,25 @@ class Document:
 
     def __getitem__(self, idx):
         return (self.tokens[idx], self.corefs[idx],
-                self.speakers[idx], self.genre)
+                )
 
     def __repr__(self):
         return 'Document containing %d tokens' % len(self.tokens)
 
     def __len__(self):
         return len(self.tokens)
+
+    @cached_property
+    def sents(self):
+        """ Regroup raw_text into sentences """
+
+        # Get sentence boundaries
+        sent_idx = [idx + 1
+                    for idx, token in enumerate(self.tokens)
+                    if token in ['.', '?', '!']]
+
+        # Regroup (returns list of lists)
+        return [self.tokens[i1:i2] for i1, i2 in pairwise([0] + sent_idx)]
 
     def truncate(self, MAX=50):
         """ Randomly truncate the document to up to MAX sentences """
