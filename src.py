@@ -1,5 +1,7 @@
 import logging
-
+import random
+import os
+import re
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -95,7 +97,6 @@ class DocumentEncoder(nn.Module):
         self.lstm_dropout = nn.Dropout(0.20, inplace=True)
 
 
-
 class CorefModel(nn.Module):
     """
     Coreference resolution model. This class handles encoder and scoring links.
@@ -141,6 +142,54 @@ class CorefModel(nn.Module):
                 logging.warning("transformers library not found. Using default hyperparameters.")
 
 
+class Trainer:
+    """ Class dedicated to training and evaluating the model
+    """
+
+    def __init__(self, model, train_corpus, test_corpus,
+                 steps, lr=1e-3):
+        self.__dict__.update(locals())
+        self.train_corpus = list(self.train_corpus)
+        self.val_corpus = self.val_corpus
+
+        self.model = to_cuda(model)
+
+        # self.optimizer = optim.Adam(params=[p for p in self.model.parameters()
+        #                                     if p.requires_grad],
+        #                             lr=lr)
+        # self.scheduler = optim.lr_scheduler.StepLR(self.optimizer,
+        #                                            step_size=100,
+        #                                            gamma=0.001)
+
+        def train(self, num_epochs, eval_interval=10, *args, **kwargs):
+            """ Training  the model """
+
+            for epoch in range(1, num_epochs + 1):
+                self.train_epoch(epoch, *args, **kwargs)
+
+                # self.save_model(str(datetime.now()))
+                #
+                # # Evaluate every eval_interval epochs
+                # if epoch % eval_interval == 0:
+                #     print('\n\nEVALUATION\n\n')
+                #     self.model.eval()
+                #     results = self.evaluate(self.val_corpus)
+                #     print(results)
+
+        def train_epoch(self, epoch):
+            """ Run a training epoch over 'steps' documents """
+            # Set model to train (enables dropout)
+            self.model.train()
+
+            # Randomly sample documents from the train corpus
+            batch = random.sample(self.train_corpus, self.steps)
+
+            epoch_loss, epoch_mentions, epoch_corefs, epoch_identified = [], [], [], []
+
+            for document in tqdm(batch):
+                
+
+
 if __name__ == "__main__":
     # Create coreference resolution model
 
@@ -152,3 +201,11 @@ if __name__ == "__main__":
     model = CorefModel(embed_dim=400, hidden_dim=200, encoder_type='lstm')
 
     logger.info("Reading training and test corpora...")
+    train_corpus = read_corpus('data/Mehr/train-dev/')
+    test_corpus = read_corpus('data/Mehr/test/')
+
+    # ?? train for 150 epochs, each  train 40 documents for mehr and 100 for RCDAT
+    trainer = Trainer(model, train_corpus, test_corpus, steps=5)
+
+    logger.info("Training and test corpora loaded successfully.")
+    trainer.train(150)
