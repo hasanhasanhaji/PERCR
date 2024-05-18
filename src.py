@@ -1,10 +1,25 @@
 import logging
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from conll_mehr import *
 
 # configure logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class DocumentEncoder(nn.Module):
+    """ Document encoder for tokens The class takes hidden_dim (dimensionality of hidden states), char_filters (
+    number of filters in the character-level CNN), and n_layers (number of layers in the LSTM) as parameters.
+    """
+
+    def __init__(self, hidden_dim, char_filters, n_layers=2):
+        super().__init__()
+
+        #  Unit vector embeddings >>> normalization
+        logger.info("Start normalizing glove weights.")
+        glove_weights = F.normalize(GLOVE.weights())
 
 
 class CorefModel(nn.Module):
@@ -27,7 +42,7 @@ class CorefModel(nn.Module):
             self.gij_dim = self.gi_dim * 3 + self.distance_dim
 
             logger.info(f"For Bi-LSTM encoder: span_dim is {self.gi_dim}, pairs_dim is {self.gij_dim}")
-            # self.encoder = DocumentEncoder(embed_dim, char_filters)
+            self.encoder = DocumentEncoder(embed_dim, char_filters)
             # self.score_spans = MentionScore(self.gi_dim, embed_dim, self.distance_dim)
             # self.score_pairs = PairwiseScore(self.gij_dim, distance_dim)
         else:
