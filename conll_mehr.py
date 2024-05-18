@@ -1,12 +1,13 @@
 import glob
 import torch
-import torchtext
 from torchtext.vocab import Vectors
+import random
 import os
 import io
 import re
 from utils import flatten
 from cached_property import cached_property
+from copy import deepcopy as c
 
 
 class LazyVectors:
@@ -137,6 +138,16 @@ class Document:
 
     def __len__(self):
         return len(self.tokens)
+
+    def truncate(self, MAX=50):
+        """ Randomly truncate the document to up to MAX sentences """
+        if len(self.sents) > MAX:
+            i = random.sample(range(MAX, len(self.sents)), 1)[0]
+            tokens = flatten(self.sents[i - MAX:i])
+            return self.__class__(c(self.raw_text), tokens,
+                                  c(self.corefs), c(self.speakers),
+                                  c(self.genre), c(self.filename))
+        return self
 
 
 def load_file(filename):
