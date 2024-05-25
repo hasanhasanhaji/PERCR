@@ -232,7 +232,7 @@ if __name__ == "__main__":
     test_corpus = read_corpus('data/Mehr/test/')
 
     # ?? train for 150 epochs, each  train 100 documents each doc up to 50 sentences for lstm
-    trainer = Trainer(model, train_corpus, test_corpus, steps=5)
+    trainer = Trainer(model, train_corpus, test_corpus, steps=1)
 
     logger.info("Training and test corpora loaded successfully.")
     trainer.train(150)

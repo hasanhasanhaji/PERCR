@@ -10,6 +10,7 @@ from cached_property import cached_property
 from copy import deepcopy as c
 from boltons.iterutils import pairwise
 
+
 class LazyVectors:
     """Load only those vectors from GloVE that are in the vocab.
     Assumes PAD id of 0 and UNK id of 1
@@ -143,10 +144,14 @@ class Document:
     def sents(self):
         """ Regroup raw_text into sentences """
 
-        # Get sentence boundaries
-        sent_idx = [idx + 1
-                    for idx, token in enumerate(self.tokens)
-                    if token in ['.', '?', '!']]
+        # Get sentence boundaries while avoiding periods within numbers
+        sent_idx = []
+        for idx, token in enumerate(self.tokens):
+            if token in ['.', '?', '!']:
+                # Check if the token is a period not surrounded by digits
+                if not (token == '.' and 0 < idx < len(self.tokens) - 1 and self.tokens[idx - 1].isdigit() and
+                        self.tokens[idx + 1].isdigit()):
+                    sent_idx.append(idx + 1)
 
         # Regroup (returns list of lists)
         return [self.tokens[i1:i2] for i1, i2 in pairwise([0] + sent_idx)]
