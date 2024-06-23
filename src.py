@@ -97,6 +97,39 @@ class DocumentEncoder(nn.Module):
         self.emb_dropout = nn.Dropout(0.50, inplace=True)
         self.lstm_dropout = nn.Dropout(0.20, inplace=True)
 
+    def forward(self, doc):
+        """ Convert document words to ids, embed them, pass through LSTM. """
+        # Embed document
+        embeds = [self.embed(s) for s in doc.sents]
+        # Batch for LSTM
+        packed, reorder = pack(embeds)
+
+        # Apply embedding dropout
+        self.emb_dropout(packed[0])
+
+        # Pass an LSTM over the embeds
+        output, _ = self.lstm(packed)
+
+        # Apply dropout
+        self.lstm_dropout(output[0])
+
+        # Undo the packing/padding required for batching
+        states = unpack_and_unpad(output, reorder)
+
+        return torch.cat(states, dim=0), torch.cat(embeds, dim=0)
+
+
+    def embed(self, sent):
+        """ Embed a sentence using GLoVE, Turian, and character embeddings """
+        # Embed the tokens with Glove
+        glove_embeds = self.glove(lookup_tensor(sent, GLOVE))
+        # Character embeddings
+        char_embeds = self.char_embeddings(sent)
+
+        # Concatenate them all together
+        embeds = torch.cat((glove_embeds, char_embeds), dim=1)
+        return embeds
+
 
 class CorefModel(nn.Module):
     """
@@ -141,6 +174,23 @@ class CorefModel(nn.Module):
                 # self.score_pairs = PairwiseScore(self.gij_dim, distance_dim)
             except ImportError:
                 logging.warning("transformers library not found. Using default hyperparameters.")
+
+    def forward(self, doc):
+        """ Enocde document
+                    Predict unary mention scores, prune them
+                    Predict pairwise coreference scores
+        """
+
+        # Encode the document, keep the LSTM hidden states and embedded tokens
+        states, embeds = self.encoder(doc)
+
+        # # Get mention scores for each span, prune
+        # spans, g_i, mention_scores = self.score_spans(states, embeds, doc)
+        #
+        # # Get pairwise scores for each span combo
+        # spans, coref_scores = self.score_pairs(spans, g_i, mention_scores)
+        #
+        # return spans, coref_scores
 
 
 class Trainer:

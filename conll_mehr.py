@@ -240,6 +240,18 @@ def read_corpus(path):
     return Corpus(flatten([load_file(file) for file in conll_files]))
 
 
+def to_cuda(x):
+    """ GPU-enable a tensor """
+    if torch.cuda.is_available():
+        x = x.cuda()
+    return x
+
+
+def lookup_tensor(tokens, vectorizer):
+    """ Convert a sentence to an embedding lookup tensor """
+    return to_cuda(torch.tensor([vectorizer.stoi(t) for t in tokens]))
+
+
 GLOVE = LazyVectors.from_corpus(read_corpus('data/Mehr/train-dev/').vocab,
                                 name='glove_arman_300.txt',
                                 cache='data/vectors/')
