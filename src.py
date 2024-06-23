@@ -5,7 +5,7 @@ import re
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
-
+import torch.optim as optim
 from conll_mehr import *
 from utils import *
 
@@ -154,9 +154,10 @@ class Trainer:
 
         self.model = to_cuda(model)
 
-        # self.optimizer = optim.Adam(params=[p for p in self.model.parameters()
-        #                                     if p.requires_grad],
-        #                             lr=lr)
+        self.optimizer = optim.Adam(params=[p for p in self.model.parameters()
+                                            if p.requires_grad],
+                                    lr=lr)
+
         # self.scheduler = optim.lr_scheduler.StepLR(self.optimizer,
         #                                            step_size=100,
         #                                            gamma=0.001)
@@ -190,7 +191,7 @@ class Trainer:
             # Randomly truncate document to up to 50 sentences
 
             doc = document.truncate()
-            pass
+
             # Compute loss, number gold links found, total gold links
             loss, mentions_found, total_mentions, \
                 corefs_found, total_corefs, corefs_chosen = self.train_doc(doc)
@@ -214,6 +215,17 @@ class Trainer:
 
     def train_doc(self, document):
         """ Compute loss for a forward pass over a document """
+        gold_corefs, total_corefs, \
+            gold_mentions, total_mentions = extract_gold_corefs(document)
+
+        # Zero out optimizer gradients
+        self.optimizer.zero_grad()
+
+        # Init metrics
+        mentions_found, corefs_found, corefs_chosen = 0, 0, 0
+
+        # Predict coref probabilites for each span in a document
+        spans, probs = self.model(document)
         pass
 
 
