@@ -257,3 +257,7 @@ def lookup_tensor(tokens, vectorizer):
 GLOVE = LazyVectors.from_corpus(read_corpus('data/Mehr/train-dev/').vocab,
                                 name='glove_arman_300.txt',
                                 cache='data/vectors/')
+
+W2VEC = LazyVectors.from_corpus(read_corpus('data/Mehr/train-dev/').vocab,
+                                name='word2vec_wikipedia_50.txt',
+                                cache='data/vectors/')

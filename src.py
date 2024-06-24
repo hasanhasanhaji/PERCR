@@ -84,6 +84,7 @@ class DocumentEncoder(nn.Module):
         #  Unit vector embeddings >>> normalization
         logger.info("Start normalizing glove weights.")
         glove_weights = F.normalize(GLOVE.weights())  # unique vocabs ** 300 (glove dim)
+        word2vec_weights = F.normalize(W2VEC.weights())
 
         # GLoVE
         self.glove = nn.Embedding(glove_weights.shape[0], glove_weights.shape[1])
