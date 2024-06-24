@@ -195,6 +195,11 @@ class PairwiseScore(nn.Module):
         self.distance = Distance(distance_dim)
         self.score = Score(gij_dim)
 
+    def forward(self, spans, g_i, mention_scores):
+        """ Compute pairwise score for spans and their up to K antecedents
+        """
+        pass
+        # TODO:
 
 class CorefModel(nn.Module):
     """
