@@ -4,6 +4,7 @@ from itertools import groupby, combinations
 import numpy as np
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence, pack_sequence
 
+
 def flatten(alist):
     """ Flatten a list of lists into one list """
     return [item for sublist in alist for item in sublist]
@@ -67,6 +68,7 @@ def pack(tensors):
 
     return packed, reorder
 
+
 def unpack_and_unpad(lstm_out, reorder):
     """ Given a padded and packed sequence and its reordering indexes,
     unpack and unpad it. Inverse of pad_and_pack """
@@ -81,3 +83,10 @@ def unpack_and_unpad(lstm_out, reorder):
     regrouped = [unpadded[idx] for idx in reorder]
 
     return regrouped
+
+
+def safe_divide(x, y):
+    """ Make sure we don't divide by 0 """
+    if y != 0:
+        return x / y
+    return 1

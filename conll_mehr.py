@@ -14,32 +14,20 @@ from boltons.iterutils import pairwise
 class LazyVectors:
     """Load only those vectors from GloVE that are in the vocab.
     Assumes PAD id of 0 and UNK id of 1
+    name: The name of the embedding file (e.g., 'glove.840B.300d.txt').
+    cache: The directory where the embedding file is stored.
+    skim: An optional limit on the number of words to load from the embeddings.
+    vocab: An optional list of words in the vocabulary.
     """
 
-    unk_idx = 1
+    unk_idx = 1  # Index used for unknown words, set to 1.
 
     def __init__(self, name,
                  cache,
                  skim=None,
                  vocab=None):
-        """  Requires the glove vectors to be in a folder named .vector_cache
-        Setup:
-            >> cd ~/where_you_want_to_save
-            >> mkdir .vector_cache
-            >> mv ~/where_glove_vectors_are_stored/glove.840B.300d.txt
-                ~/where_you_want_to_save/.vector_cache/glove.840B.300d.txt
-        Initialization (first init will be slow):
-            >> VECTORS = LazyVectors(cache='~/where_you_saved_to/.vector_cache/',
-                                     vocab_file='../path/vocabulary.txt',
-                                     skim=None)
-        Usage:
-            >> weights = VECTORS.weights()
-            >> embeddings = torch.nn.Embedding(weights.shape[0],
-                                              weights.shape[1],
-                                              padding_idx=0)
-            >> embeddings.weight.data.copy_(weights)
-            >> embeddings(sent_to_tensor('kids love unknown_word food'))
-        You can access these moved vectors from any repository
+        """  The LazyVectors class is designed to load pre-trained word vectors (like GloVe) efficiently by loading only
+        those vectors that are in the specified vocabulary.
         """
         self.__dict__.update(locals())
         if self.vocab is not None:
@@ -47,14 +35,25 @@ class LazyVectors:
 
     @classmethod
     def from_corpus(cls, corpus_vocabulary, name, cache):
+        """
+        from_corpus: A class method to create an instance
+        using a vocabulary from a corpus, embedding name, and cache directory.
+        """
         return cls(name=name, cache=cache, vocab=corpus_vocabulary)
 
     @cached_property
     def loader(self):
+        """
+        loader: A cached property that initializes and returns
+        a Vectors object (likely from torchtext) which loads the embedding vectors.
+        :return:
+        """
         return Vectors(self.name, cache=self.cache)
 
     def set_vocab(self, vocab):
-        """ Set corpus vocab
+        """
+        set_vocab: Filters the provided vocabulary to include only those words present
+        in the embeddings and initializes the dictionary mappings.
         """
         # Intersects and initializes the torchtext Vectors class
         self.vocab = [v for v in vocab if v in self.loader.stoi][:self.skim]
@@ -66,14 +65,17 @@ class LazyVectors:
         return read_corpus(filename)
 
     def set_dicts(self):
-        """ _stoi: map string > index
-            _itos: map index > string
+        """
+        set_dicts: Sets up the string-to-index (_stoi) and
+        index-to-string (_itos) mappings for the vocabulary.
         """
         self._stoi = {s: i for i, s in enumerate(self.vocab)}
         self._itos = {i: s for s, i in self._stoi.items()}
 
     def weights(self):
-        """Build weights tensor for embedding layer """
+        """
+        Build weights tensor for embedding layer
+        """
         # Select vectors for vocab words.
         weights = torch.stack([
             self.loader.vectors[self.loader.stoi[s]]

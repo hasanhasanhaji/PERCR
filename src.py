@@ -8,6 +8,7 @@ from tqdm import tqdm
 import torch.optim as optim
 from conll_mehr import *
 from utils import *
+from datetime import datetime
 
 # configure logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -19,22 +20,28 @@ class CharCNN(nn.Module):
     Give a sentence then return character embeddings.
     """
 
-    unk_idx = 1
-    vocab = read_corpus('data/Mehr/train-dev').char_vocab
-    _stoi = {char: idx + 2 for idx, char in enumerate(vocab)}
-    pad_size = 15
+    unk_idx = 1  # Sets the index for unknown characters.
+    vocab = read_corpus('data/Mehr/train-dev').char_vocab  # Loads the character vocabulary from the training data
+    _stoi = {char: idx + 2 for idx, char in enumerate(
+        vocab)}  # Creates a dictionary mapping each character to an index, starting from 2 to reserve indices 0 and
+    # 1 for padding and unknown characters.
+    pad_size = 15  # Sets the fixed size for padding sequences.
 
     def __init__(self, filters, char_dim=8):
         super().__init__()
 
-        self.embeddings = nn.Embedding(len(self.vocab) + 2, char_dim, padding_idx=0)
+        self.embeddings = nn.Embedding(len(self.vocab) + 2, char_dim,
+                                       padding_idx=0)  # Creates an embedding layer for character embeddings,
+        # with padding index set to 0.
         self.convs = nn.ModuleList([nn.Conv1d(in_channels=self.pad_size,
                                               out_channels=filters,
                                               kernel_size=n) for n in (3, 4, 5)])
+        # Creates a list of convolutional layers with different kernel sizes (3, 4, and 5).
 
     def forward(self, sent):
         """ Compute filter-dimensional character-level features for each doc token """
-        embedded = self.embeddings(self.sent_to_tensor(sent))
+        embedded = self.embeddings(self.sent_to_tensor(sent))  # Converts the input sentence to a tensor and applies
+        # the embedding layer.
         convolved = torch.cat([F.relu(conv(embedded)) for conv in self.convs], dim=2)
         pooled = F.max_pool1d(convolved, convolved.shape[2]).squeeze(2)
         return pooled
@@ -98,42 +105,22 @@ class DocumentEncoder(nn.Module):
         self.lstm_dropout = nn.Dropout(0.20, inplace=True)
 
     def forward(self, doc):
-        """ Convert document words to ids, embed them, pass through LSTM. """
-        # Embed document
-        embeds = [self.embed(s) for s in doc.sents]
-        # Batch for LSTM
-        packed, reorder = pack(embeds)
-
-        # Apply embedding dropout
-        self.emb_dropout(packed[0])
-
-        # Pass an LSTM over the embeds
-        output, _ = self.lstm(packed)
-
-        # Apply dropout
-        self.lstm_dropout(output[0])
-
-        # Undo the packing/padding required for batching
-        states = unpack_and_unpad(output, reorder)
-
-        return torch.cat(states, dim=0), torch.cat(embeds, dim=0)
+        pass
+    # TODO:
 
 
-    def embed(self, sent):
-        """ Embed a sentence using GLoVE, Turian, and character embeddings """
-        # Embed the tokens with Glove
-        glove_embeds = self.glove(lookup_tensor(sent, GLOVE))
-        # Character embeddings
-        char_embeds = self.char_embeddings(sent)
+class MentionScore(nn.Module):
+    pass
 
-        # Concatenate them all together
-        embeds = torch.cat((glove_embeds, char_embeds), dim=1)
-        return embeds
+
+class PairwiseScore(nn.Module):
+    pass
 
 
 class CorefModel(nn.Module):
     """
     Coreference resolution model. This class handles encoder and scoring links.
+    It computes coreference links between spans.
     """
 
     def __init__(self, embed_dim, hidden_dim, encoder_type, char_filters=50, distance_dim=20):
@@ -144,16 +131,22 @@ class CorefModel(nn.Module):
 
         # Handle encoder-specific hyperparameters and initialization
         if encoder_type == "lstm":
+
+            # Forward and backward pass of bi-lstm over the document
+            attn_dim = hidden_dim * 2
+
             # Forward and backward passes, avg'd attn over embeddings, span width
-            self.gi_dim = embed_dim * 3 + self.distance_dim
+            self.gi_dim = attn_dim * 2 + embed_dim + self.distance_dim
 
             # gi, gj, gi*gj, distance between gi and gj
             self.gij_dim = self.gi_dim * 3 + self.distance_dim
 
             logger.info(f"For Bi-LSTM encoder: span_dim is {self.gi_dim}, pairs_dim is {self.gij_dim}")
             self.encoder = DocumentEncoder(hidden_dim, char_filters)
-            # self.score_spans = MentionScore(self.gi_dim, embed_dim, self.distance_dim)
-            # self.score_pairs = PairwiseScore(self.gij_dim, distance_dim)
+            # This module is responsible for scoring individual spans (potential mentions) within the document.
+            self.score_spans = MentionScore(self.gi_dim, attn_dim, self.distance_dim)
+            # This module is responsible for scoring pairs of spans to determine if they refer to the same entity.
+            self.score_pairs = PairwiseScore(self.gij_dim, distance_dim)
         else:
             try:
                 pass
@@ -176,21 +169,12 @@ class CorefModel(nn.Module):
                 logging.warning("transformers library not found. Using default hyperparameters.")
 
     def forward(self, doc):
-        """ Enocde document
+        """         Encode document
                     Predict unary mention scores, prune them
                     Predict pairwise coreference scores
         """
 
-        # Encode the document, keep the LSTM hidden states and embedded tokens
-        states, embeds = self.encoder(doc)
-
-        # # Get mention scores for each span, prune
-        # spans, g_i, mention_scores = self.score_spans(states, embeds, doc)
-        #
-        # # Get pairwise scores for each span combo
-        # spans, coref_scores = self.score_pairs(spans, g_i, mention_scores)
-        #
-        # return spans, coref_scores
+        # TODO:
 
 
 class Trainer:
@@ -199,18 +183,20 @@ class Trainer:
 
     def __init__(self, model, train_corpus, test_corpus,
                  steps, lr=1e-3):
-        self.__dict__.update(locals())
-        self.train_corpus = list(self.train_corpus)
-
         self.model = to_cuda(model)
+        self.train_corpus = list(train_corpus)
+        self.test_corpus = test_corpus
+        self.steps = steps
+        self.lr = lr
 
-        self.optimizer = optim.Adam(params=[p for p in self.model.parameters()
-                                            if p.requires_grad],
-                                    lr=lr)
+        self.optimizer = optim.Adam(
+            params=[p for p in self.model.parameters() if p.requires_grad],
+            lr=self.lr
+        )
 
-        # self.scheduler = optim.lr_scheduler.StepLR(self.optimizer,
-        #                                            step_size=100,
-        #                                            gamma=0.001)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer,
+                                                   step_size=100,
+                                                   gamma=0.001)  # adjusts the learning rate during training
 
     def train(self, num_epochs, eval_interval=10, *args, **kwargs):
         """ Training  the model """
@@ -218,14 +204,16 @@ class Trainer:
         for epoch in range(1, num_epochs + 1):
             self.train_epoch(epoch, *args, **kwargs)
 
-            # self.save_model(str(datetime.now()))
-            #
-            # # Evaluate every eval_interval epochs
-            # if epoch % eval_interval == 0:
-            #     print('\n\nEVALUATION\n\n')
-            #     self.model.eval()
-            #     results = self.evaluate(self.val_corpus)
-            #     print(results)
+            self.save_model(str(datetime.now()))  # save the model with a filename based on the current date and time.
+
+            # Evaluate every eval_interval epochs
+            if epoch % eval_interval == 0:
+                print('\n\nEVALUATION\n\n')
+                self.model.eval()  # Sets the model to evaluation mode.
+
+                #  Evaluates the model on the validation corpus and stores the results.
+                # results = self.evaluate(self.val_corpus)
+                # print(results)
 
     def train_epoch(self, epoch):
         """ Run a training epoch over 'steps' documents """
@@ -245,23 +233,24 @@ class Trainer:
             # Compute loss, number gold links found, total gold links
             loss, mentions_found, total_mentions, \
                 corefs_found, total_corefs, corefs_chosen = self.train_doc(doc)
-            #
-            # # Track stats by document for debugging
-            # print(document, '| Loss: %f | Mentions: %d/%d | Coref recall: %d/%d | Corefs precision: %d/%d' \
-            #       % (loss, mentions_found, total_mentions,
-            #          corefs_found, total_corefs, corefs_chosen, total_corefs))
-            #
-            # epoch_loss.append(loss)
-            # epoch_mentions.append(safe_divide(mentions_found, total_mentions))
-            # epoch_corefs.append(safe_divide(corefs_found, total_corefs))
-            # epoch_identified.append(safe_divide(corefs_chosen, total_corefs))
+            # to compute the loss and various metrics for the truncated document.
 
-        # # Step the learning rate decrease scheduler
-        # self.scheduler.step()
-        #
-        # print('Epoch: %d | Loss: %f | Mention recall: %f | Coref recall: %f | Coref precision: %f' \
-        #         % (epoch, np.mean(epoch_loss), np.mean(epoch_mentions),
-        #             np.mean(epoch_corefs), np.mean(epoch_identified)))
+            # Track stats by document for debugging
+            print(document, '| Loss: %f | Mentions: %d/%d | Coref recall: %d/%d | Corefs precision: %d/%d' \
+                  % (loss, mentions_found, total_mentions,
+                     corefs_found, total_corefs, corefs_chosen, total_corefs))
+
+            epoch_loss.append(loss)  # Adds the document's loss to the epoch_loss list.
+            epoch_mentions.append(safe_divide(mentions_found, total_mentions))
+            epoch_corefs.append(safe_divide(corefs_found, total_corefs))
+            epoch_identified.append(safe_divide(corefs_chosen, total_corefs))
+
+        # Step the learning rate decrease scheduler
+        self.scheduler.step()
+
+        print('Epoch: %d | Loss: %f | Mention recall: %f | Coref recall: %f | Coref precision: %f' \
+              % (epoch, np.mean(epoch_loss), np.mean(epoch_mentions),
+                 np.mean(epoch_corefs), np.mean(epoch_identified)))
 
     def train_doc(self, document):
         """ Compute loss for a forward pass over a document """
@@ -276,6 +265,8 @@ class Trainer:
 
         # Predict coref probabilites for each span in a document
         spans, probs = self.model(document)
+        # spans: The spans (potential coreferent mentions) identified in the document.
+
         pass
 
 
