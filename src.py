@@ -39,38 +39,37 @@ class CharCNN(nn.Module):
         # Creates a list of convolutional layers with different kernel sizes (3, 4, and 5).
 
     def forward(self, sent):
-        """ Compute filter-dimensional character-level features for each doc token """
-        embedded = self.embeddings(self.sent_to_tensor(sent))  # Converts the input sentence to a tensor and applies
-        # the embedding layer.
-        convolved = torch.cat([F.relu(conv(embedded)) for conv in self.convs], dim=2)
-        pooled = F.max_pool1d(convolved, convolved.shape[2]).squeeze(2)
-        return pooled
+        """
+         Compute filter-dimensional character-level features for each doc token
+         """
+        # TODO:
+        pass
 
-    def sent_to_tensor(self, sent):
-        """ Batch-ify a document class instance for CharCNN embeddings """
-        tokens = [self.token_to_idx(t) for t in sent]
-        batch = self.char_pad_and_stack(tokens)
-        return batch
-
-    def token_to_idx(self, token):
-        """ Convert a token to its character lookup ids """
-        return to_cuda(torch.tensor([self.stoi(c) for c in token]))
-
-    def char_pad_and_stack(self, tokens):
-        """ Pad and stack an uneven tensor of token lookup ids """
-        skimmed = [t[:self.pad_size] for t in tokens]
-
-        lens = [len(t) for t in skimmed]
-
-        padded = [F.pad(t, (0, self.pad_size - length))
-                  for t, length in zip(skimmed, lens)]
-
-        return torch.stack(padded)
-
-    def stoi(self, char):
-        """ Lookup char id. <PAD> is 0, <UNK> is 1. """
-        idx = self._stoi.get(char)
-        return idx if idx else self.unk_idx
+    # def sent_to_tensor(self, sent):
+    #     """ Batch-ify a document class instance for CharCNN embeddings """
+    #     tokens = [self.token_to_idx(t) for t in sent]
+    #     batch = self.char_pad_and_stack(tokens)
+    #     return batch
+    #
+    # def token_to_idx(self, token):
+    #     """ Convert a token to its character lookup ids """
+    #     return to_cuda(torch.tensor([self.stoi(c) for c in token]))
+    #
+    # def char_pad_and_stack(self, tokens):
+    #     """ Pad and stack an uneven tensor of token lookup ids """
+    #     skimmed = [t[:self.pad_size] for t in tokens]
+    #
+    #     lens = [len(t) for t in skimmed]
+    #
+    #     padded = [F.pad(t, (0, self.pad_size - length))
+    #               for t, length in zip(skimmed, lens)]
+    #
+    #     return torch.stack(padded)
+    #
+    # def stoi(self, char):
+    #     """ Lookup char id. <PAD> is 0, <UNK> is 1. """
+    #     idx = self._stoi.get(char)
+    #     return idx if idx else self.unk_idx
 
 
 class DocumentEncoder(nn.Module):
@@ -88,14 +87,19 @@ class DocumentEncoder(nn.Module):
 
         # GLoVE
         self.glove = nn.Embedding(glove_weights.shape[0], glove_weights.shape[1])
-        self.glove.weight.data.copy_(glove_weights)
+        self.glove.weight.data.copy_(glove_weights)  # initializes the embedding layer
+        # with the pre-trained vectors instead of random weights.
         self.glove.weight.requires_grad = False
+
+        self.word2vec = nn.Embedding(word2vec_weights.shape[0], word2vec_weights.shape[1])
+        self.word2vec.weight.data.copy_(word2vec_weights)
+        self.word2vec.weight.requires_grad = False
 
         # Character embedding
         self.char_embeddings = CharCNN(char_filters)  # Create char nn layer for a sentence
 
         # Sentence-LSTM
-        self.lstm = nn.LSTM(glove_weights.shape[1] + char_filters,
+        self.lstm = nn.LSTM(glove_weights.shape[1] + word2vec_weights.shape[1] + char_filters,
                             hidden_dim,
                             num_layers=n_layers,
                             bidirectional=True,
@@ -103,15 +107,83 @@ class DocumentEncoder(nn.Module):
 
         # Dropout
         self.emb_dropout = nn.Dropout(0.50, inplace=True)
-        self.lstm_dropout = nn.Dropout(0.20, inplace=True)
+        self.lstm_dropout = nn.Dropout(0.20, inplace=True)  # Applied to the outputs of the LSTM layers.
 
     def forward(self, doc):
         pass
     # TODO:
 
 
+class Score(nn.Module):
+    """
+    The Score class is a generic scoring module designed to
+    process input features and output a scalar score.
+     It uses a series of fully connected (linear) layers,
+     ReLU activations, and dropout layers to perform this task.
+    """
+
+    def __init__(self, embeds_dim, hidden_dim=150):
+        super().__init__()
+
+        self.score = nn.Sequential(
+            nn.Linear(embeds_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.20),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.20),
+            nn.Linear(hidden_dim, 1)
+        )
+
+    def forward(self, x):
+        """ Output a scalar score for an input x """
+        return self.score(x)
+
+
+class Distance(nn.Module):
+    """ Learned, continuous representations for: span widths, distance
+    between spans
+    """
+
+    bins = [1, 2, 3, 4, 8, 16, 32, 64]
+
+    def __init__(self, distance_dim=20):
+        super().__init__()
+
+        self.dim = distance_dim
+        self.embeds = nn.Sequential(
+            nn.Embedding(len(self.bins) + 1, distance_dim),
+            nn.Dropout(0.20)
+        )
+
+    def forward(self, *args):
+        """ Embedding table lookup """
+        return self.embeds(self.stoi(*args))
+
+    def stoi(self, lengths):
+        """ Find which bin a number falls into """
+        return to_cuda(torch.tensor([
+            sum([True for i in self.bins if num >= i]) for num in lengths], requires_grad=False
+        ))
+
+
 class MentionScore(nn.Module):
-    pass
+    """
+    Mention scoring module
+    """
+
+    def __init__(self, gi_dim, attn_dim, distance_dim):
+        super().__init__()
+
+        self.attention = Score(attn_dim)  # Computes attention scores for the spans.
+        self.width = Distance(distance_dim)  # processes distance-related features.
+        self.score = Score(gi_dim)  # Computes the final mention scores using combined features.
+
+    def forward(self, states, embeds, doc, K=250):
+        """ Compute unary mention score for each span
+        """
+        # TODO:
+        pass
 
 
 class PairwiseScore(nn.Module):
