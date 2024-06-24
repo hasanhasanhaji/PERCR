@@ -187,7 +187,13 @@ class MentionScore(nn.Module):
 
 
 class PairwiseScore(nn.Module):
-    pass
+    """ Coreference pair scoring module
+    """
+    def __init__(self, gij_dim, distance_dim, genre_dim, speaker_dim):
+        super().__init__()
+
+        self.distance = Distance(distance_dim)
+        self.score = Score(gij_dim)
 
 
 class CorefModel(nn.Module):
