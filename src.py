@@ -110,8 +110,31 @@ class DocumentEncoder(nn.Module):
         self.lstm_dropout = nn.Dropout(0.20, inplace=True)  # Applied to the outputs of the LSTM layers.
 
     def forward(self, doc):
+        """
+          Convert document words to ids, embed them, pass through LSTM.
+        :param doc:
+        :return:
+        """
+        # Embed document
+        embeds = [self.embed(s) for s in doc.sents]
         pass
-    # TODO:
+
+    def embed(self, sent):
+        """ Embed a sentence using GLoVE, word2vec, and character embeddings """
+
+        # Embed the tokens with Glove
+        glove_embeds = self.glove(lookup_tensor(sent, GLOVE))
+
+        # Embed again using Turian this time
+        word2vec_embeds = self.word2vec(lookup_tensor(sent, W2VEC))
+
+        # Character embeddings
+        char_embeds = self.char_embeddings(sent)
+
+        # Concatenate them all together
+        embeds = torch.cat((glove_embeds, word2vec_embeds, char_embeds), dim=1)
+
+        return embeds
 
 
 class Score(nn.Module):
@@ -190,7 +213,7 @@ class PairwiseScore(nn.Module):
     """ Coreference pair scoring module
     """
 
-    def __init__(self, gij_dim, distance_dim, genre_dim, speaker_dim):
+    def __init__(self, gij_dim, distance_dim):
         super().__init__()
 
         self.distance = Distance(distance_dim)
@@ -260,7 +283,12 @@ class CorefModel(nn.Module):
                     Predict pairwise coreference scores
         """
 
-        # TODO:
+        # Encode the document, keep the LSTM hidden states and embedded tokens
+        # states == These are the hidden states from the LSTM,
+        # which capture the sequential and contextual information of the document.
+        # embeds == These are the original token embeddings,
+        # which are dense vector representations of the tokens without contextual information.
+        states, embeds = self.encoder(doc)
 
 
 class Trainer:
@@ -270,7 +298,13 @@ class Trainer:
     def __init__(self, model, train_corpus, test_corpus,
                  steps, lr=1e-3):
         self.model = to_cuda(model)
-        self.train_corpus = list(train_corpus)
+
+        # create train corpus and eval corpus
+        random.seed(42)
+        split_idx = int(0.9 * len(train_corpus.docs))
+        self.train_corpus = train_corpus[:split_idx]
+        self.val_corpus = train_corpus[split_idx:]
+
         self.test_corpus = test_corpus
         self.steps = steps
         self.lr = lr
@@ -288,7 +322,7 @@ class Trainer:
         """ Training  the model """
 
         for epoch in range(1, num_epochs + 1):
-            self.train_epoch(epoch, *args, **kwargs)
+            self.train_epoch(epoch, *args, **kwargs)  # training each epoch
 
             self.save_model(str(datetime.now()))  # save the model with a filename based on the current date and time.
 
@@ -298,8 +332,8 @@ class Trainer:
                 self.model.eval()  # Sets the model to evaluation mode.
 
                 #  Evaluates the model on the validation corpus and stores the results.
-                # results = self.evaluate(self.val_corpus)
-                # print(results)
+                results = self.evaluate(self.val_corpus)
+                print(results)
 
     def train_epoch(self, epoch):
         """ Run a training epoch over 'steps' documents """
@@ -314,7 +348,7 @@ class Trainer:
         for document in tqdm(batch):
             # Randomly truncate document to up to 50 sentences
 
-            doc = document.truncate()
+            doc = document.truncate()  # discard docs with more than 50 sentences
 
             # Compute loss, number gold links found, total gold links
             loss, mentions_found, total_mentions, \
@@ -339,7 +373,9 @@ class Trainer:
                  np.mean(epoch_corefs), np.mean(epoch_identified)))
 
     def train_doc(self, document):
-        """ Compute loss for a forward pass over a document """
+        """
+        Compute loss for a forward pass over a document
+        """
         gold_corefs, total_corefs, \
             gold_mentions, total_mentions = extract_gold_corefs(document)
 
@@ -349,9 +385,11 @@ class Trainer:
         # Init metrics
         mentions_found, corefs_found, corefs_chosen = 0, 0, 0
 
-        # Predict coref probabilites for each span in a document
+        # Predict coref probabilities for each span in a document
         spans, probs = self.model(document)
-        # spans: The spans (potential coreferent mentions) identified in the document.
+        #  spans == These are the spans (segments) of text that the model identifies as potential coreference mentions.
+        # probs == These are the probabilities associated with each span,
+        # indicating the model's confidence that the span is a coreference mention.
 
         pass
 
@@ -362,7 +400,7 @@ if __name__ == "__main__":
     # embeds_dim = the dimensionality of token embeddings
     # hidden dim = the hidden dim of LSTM
 
-    # Encoder type = can choose between ['lstm','HooshvareLab/bert-fa-zwnj-base']
+    # Encoder type === can choose between ['lstm','HooshvareLab/bert-fa-zwnj-base']
     logger.info("Creating coref model...")
     model = CorefModel(embed_dim=400, hidden_dim=200, encoder_type='lstm')
 
