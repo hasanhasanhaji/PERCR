@@ -183,7 +183,7 @@ def load_file(filename):
                 coref['span']:      corresponding span
     """
     documents = []
-    print(filename)
+
     with io.open(filename, 'rt', encoding='utf-8', errors='strict') as f:
         raw_text, tokens, text, utts_corefs, corefs, index = [], [], [], [], [], 0
         for line in f:
