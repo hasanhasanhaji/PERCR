@@ -39,11 +39,11 @@ class CharCNN(nn.Module):
         # Creates a list of convolutional layers with different kernel sizes (3, 4, and 5).
 
     def forward(self, sent):
-        """
-         Compute filter-dimensional character-level features for each doc token
-         """
-        # TODO:
-        pass
+        """ Compute filter-dimensional character-level features for each doc token """
+        embedded = self.embeddings(self.sent_to_tensor(sent))
+        convolved = torch.cat([F.relu(conv(embedded)) for conv in self.convs], dim=2)
+        pooled = F.max_pool1d(convolved, convolved.shape[2]).squeeze(2)
+        return pooled
 
     def sent_to_tensor(self, sent):
         """ Batch-ify a document class instance for CharCNN embeddings """
