@@ -45,31 +45,31 @@ class CharCNN(nn.Module):
         # TODO:
         pass
 
-    # def sent_to_tensor(self, sent):
-    #     """ Batch-ify a document class instance for CharCNN embeddings """
-    #     tokens = [self.token_to_idx(t) for t in sent]
-    #     batch = self.char_pad_and_stack(tokens)
-    #     return batch
-    #
-    # def token_to_idx(self, token):
-    #     """ Convert a token to its character lookup ids """
-    #     return to_cuda(torch.tensor([self.stoi(c) for c in token]))
-    #
-    # def char_pad_and_stack(self, tokens):
-    #     """ Pad and stack an uneven tensor of token lookup ids """
-    #     skimmed = [t[:self.pad_size] for t in tokens]
-    #
-    #     lens = [len(t) for t in skimmed]
-    #
-    #     padded = [F.pad(t, (0, self.pad_size - length))
-    #               for t, length in zip(skimmed, lens)]
-    #
-    #     return torch.stack(padded)
-    #
-    # def stoi(self, char):
-    #     """ Lookup char id. <PAD> is 0, <UNK> is 1. """
-    #     idx = self._stoi.get(char)
-    #     return idx if idx else self.unk_idx
+    def sent_to_tensor(self, sent):
+        """ Batch-ify a document class instance for CharCNN embeddings """
+        tokens = [self.token_to_idx(t) for t in sent]
+        batch = self.char_pad_and_stack(tokens)
+        return batch
+
+    def token_to_idx(self, token):
+        """ Convert a token to its character lookup ids """
+        return to_cuda(torch.tensor([self.stoi(c) for c in token]))
+
+    def char_pad_and_stack(self, tokens):
+        """ Pad and stack an uneven tensor of token lookup ids """
+        skimmed = [t[:self.pad_size] for t in tokens]
+
+        lens = [len(t) for t in skimmed]
+
+        padded = [F.pad(t, (0, self.pad_size - length))
+                  for t, length in zip(skimmed, lens)]
+
+        return torch.stack(padded)
+
+    def stoi(self, char):
+        """ Lookup char id. <PAD> is 0, <UNK> is 1. """
+        idx = self._stoi.get(char)
+        return idx if idx else self.unk_idx
 
 
 class DocumentEncoder(nn.Module):
@@ -117,7 +117,24 @@ class DocumentEncoder(nn.Module):
         """
         # Embed document
         embeds = [self.embed(s) for s in doc.sents]
-        pass
+
+        # Batch for LSTM
+        packed, reorder = pack(embeds)
+
+        # Apply embedding dropout
+        self.emb_dropout(packed[0])
+
+        # Pass an LSTM over the embeds
+        output, _ = self.lstm(packed)
+
+        # Apply dropout
+        self.lstm_dropout(output[0])
+
+        # Undo the packing/padding required for batching
+        states = unpack_and_unpad(output, reorder)
+
+        return torch.cat(states, dim=0), torch.cat(embeds, dim=0)
+
 
     def embed(self, sent):
         """ Embed a sentence using GLoVE, word2vec, and character embeddings """
@@ -288,7 +305,19 @@ class CorefModel(nn.Module):
         # which capture the sequential and contextual information of the document.
         # embeds == These are the original token embeddings,
         # which are dense vector representations of the tokens without contextual information.
+        logger.info(f"Encode document {doc}")
         states, embeds = self.encoder(doc)
+
+        pass
+        # # Get mention scores for each span, prune
+        # spans, g_i, mention_scores = self.score_spans(states, embeds, doc)
+        #
+        # # Get pairwise scores for each span combo
+        # spans, coref_scores = self.score_pairs(spans, g_i, mention_scores)
+        #
+        # return spans, coref_scores
+
+
 
 
 class Trainer:
@@ -324,10 +353,13 @@ class Trainer:
         for epoch in range(1, num_epochs + 1):
             self.train_epoch(epoch, *args, **kwargs)  # training each epoch
 
+
+            logger.info(" Start saving the model.")
             self.save_model(str(datetime.now()))  # save the model with a filename based on the current date and time.
 
             # Evaluate every eval_interval epochs
             if epoch % eval_interval == 0:
+                logger.info(" Evaluating every 10 epoch...")
                 print('\n\nEVALUATION\n\n')
                 self.model.eval()  # Sets the model to evaluation mode.
 
@@ -338,6 +370,7 @@ class Trainer:
     def train_epoch(self, epoch):
         """ Run a training epoch over 'steps' documents """
         # Set model to train (enables dropout)
+        logger.info("Training epoch based on batches beginning...")
         self.model.train()
 
         # Randomly sample documents from the train corpus
@@ -390,6 +423,45 @@ class Trainer:
         #  spans == These are the spans (segments) of text that the model identifies as potential coreference mentions.
         # probs == These are the probabilities associated with each span,
         # indicating the model's confidence that the span is a coreference mention.
+
+        # Get log-likelihood of correct antecedents implied by gold clustering
+        # gold_indexes = to_cuda(torch.zeros_like(probs))
+        # for idx, span in enumerate(spans):
+        #
+        #     # Log number of mentions found
+        #     if (span.i1, span.i2) in gold_mentions:
+        #         mentions_found += 1
+        #
+        #         # Check which of these tuples are in the gold set, if any
+        #         golds = [
+        #             i for i, link in enumerate(span.yi_idx)
+        #             if link in gold_corefs
+        #         ]
+        #
+        #         # If gold_pred_idx is not empty, consider the probabilities of the found antecedents
+        #         if golds:
+        #             gold_indexes[idx, golds] = 1
+        #
+        #             # Progress logging for recall
+        #             corefs_found += len(golds)
+        #             found_corefs = sum((probs[idx, golds] > probs[idx, len(span.yi_idx)])).detach()
+        #             corefs_chosen += found_corefs.item()
+        #         else:
+        #             # Otherwise, set gold to dummy
+        #             gold_indexes[idx, len(span.yi_idx)] = 1
+        #
+        # # Negative marginal log-likelihood
+        # eps = 1e-8
+        # loss = torch.sum(torch.log(torch.sum(torch.mul(probs, gold_indexes), dim=1).clamp_(eps, 1 - eps), dim=0) * -1)
+        #
+        # # Backpropagate
+        # loss.backward()
+        #
+        # # Step the optimizer
+        # self.optimizer.step()
+        #
+        # return (loss.item(), mentions_found, total_mentions,
+        #         corefs_found, total_corefs, corefs_chosen)
 
         pass
 
