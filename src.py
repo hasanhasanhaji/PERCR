@@ -533,48 +533,46 @@ class Trainer:
         # indicating the model's confidence that the span is a coreference mention.
         spans, probs = self.model(document)
 
-        pass
-
         # Get log-likelihood of correct antecedents implied by gold clustering
-        # gold_indexes = to_cuda(torch.zeros_like(probs))
-        # for idx, span in enumerate(spans):
-        #
-        #     # Log number of mentions found
-        #     if (span.i1, span.i2) in gold_mentions:
-        #         mentions_found += 1
-        #
-        #         # Check which of these tuples are in the gold set, if any
-        #         golds = [
-        #             i for i, link in enumerate(span.yi_idx)
-        #             if link in gold_corefs
-        #         ]
-        #
-        #         # If gold_pred_idx is not empty, consider the probabilities of the found antecedents
-        #         if golds:
-        #             gold_indexes[idx, golds] = 1
-        #
-        #             # Progress logging for recall
-        #             corefs_found += len(golds)
-        #             found_corefs = sum((probs[idx, golds] > probs[idx, len(span.yi_idx)])).detach()
-        #             corefs_chosen += found_corefs.item()
-        #         else:
-        #             # Otherwise, set gold to dummy
-        #             gold_indexes[idx, len(span.yi_idx)] = 1
-        #
-        # # Negative marginal log-likelihood
-        # eps = 1e-8
-        # loss = torch.sum(torch.log(torch.sum(torch.mul(probs, gold_indexes), dim=1).clamp_(eps, 1 - eps), dim=0) * -1)
-        #
-        # # Backpropagate
-        # loss.backward()
-        #
-        # # Step the optimizer
-        # self.optimizer.step()
-        #
-        # return (loss.item(), mentions_found, total_mentions,
-        #         corefs_found, total_corefs, corefs_chosen)
+        gold_indexes = to_cuda(torch.zeros_like(probs))
+        for idx, span in enumerate(spans):
 
-        pass
+            # Log number of mentions found
+            if (span.i1, span.i2) in gold_mentions:
+                mentions_found += 1
+
+                # Check which of these tuples are in the gold set, if any
+                golds = [
+                    i for i, link in enumerate(span.yi_idx)
+                    if link in gold_corefs
+                ]
+
+                # If gold_pred_idx is not empty, consider the probabilities of the found antecedents
+                if golds:
+                    gold_indexes[idx, golds] = 1
+
+                    # Progress logging for recall
+                    corefs_found += len(golds)
+                    found_corefs = sum((probs[idx, golds] > probs[idx, len(span.yi_idx)])).detach()
+                    corefs_chosen += found_corefs.item()
+                else:
+                    # Otherwise, set gold to dummy
+                    gold_indexes[idx, len(span.yi_idx)] = 1
+
+        # Negative marginal log-likelihood
+        eps = 1e-8
+        loss = torch.sum(torch.log(torch.sum(torch.mul(probs, gold_indexes), dim=1).clamp_(eps, 1 - eps), dim=0) * -1)
+
+        # Backpropagate
+        loss.backward()
+
+        # Step the optimizer
+        self.optimizer.step()
+
+        return (loss.item(), mentions_found, total_mentions,
+                corefs_found, total_corefs, corefs_chosen)
+
+
 
 
 if __name__ == "__main__":
