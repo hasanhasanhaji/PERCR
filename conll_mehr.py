@@ -3,12 +3,44 @@ import torch
 from torchtext.vocab import Vectors
 import random
 import os
+import attr
 import io
 import re
 from utils import flatten
 from cached_property import cached_property
 from copy import deepcopy as c
 from boltons.iterutils import pairwise
+
+
+@attr.s(frozen=True, repr=False)
+class Span:
+    # Left / right token indexes
+    i1 = attr.ib()
+    i2 = attr.ib()
+
+    # Id within total spans (for indexing into a batch computation)
+    id = attr.ib()
+
+    # # Speaker
+    # speaker = attr.ib()
+    #
+    # # Genre
+    # genre = attr.ib()
+
+    # Unary mention score, as tensor
+    si = attr.ib(default=None)
+
+    # List of candidate antecedent spans
+    yi = attr.ib(default=None)
+
+    # Corresponding span ids to each yi
+    yi_idx = attr.ib(default=None)
+
+    def __len__(self):
+        return self.i2 - self.i1 + 1
+
+    def __repr__(self):
+        return 'Span representing %d tokens' % (self.__len__())
 
 
 class LazyVectors:

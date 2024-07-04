@@ -135,7 +135,6 @@ class DocumentEncoder(nn.Module):
 
         return torch.cat(states, dim=0), torch.cat(embeds, dim=0)
 
-
     def embed(self, sent):
         """ Embed a sentence using GLoVE, word2vec, and character embeddings """
 
@@ -220,10 +219,61 @@ class MentionScore(nn.Module):
         self.score = Score(gi_dim)  # Computes the final mention scores using combined features.
 
     def forward(self, states, embeds, doc, K=250):
-        """ Compute unary mention score for each span
         """
-        # TODO:
-        pass
+        Compute unary mention score for each span
+        """
+        # Initialize Span objects containing start index, end index
+        spans = [Span(i1=i[0], i2=i[-1], id=idx) for idx, i in enumerate(compute_idx_spans(doc.sents))]
+
+        # Compute first part of attention over span states (alpha_t)
+        attns = self.attention(states)
+
+        # Regroup attn values, embeds into span representations
+        # TODO: figure out a way to batch
+        span_attns, span_embeds = zip(*[(attns[s.i1:s.i2 + 1], embeds[s.i1:s.i2 + 1])
+                                        for s in spans])
+
+        # Pad and stack span attention values, span embeddings for batching
+        padded_attns, _ = pad_and_stack(span_attns, value=-1e10)
+        padded_embeds, _ = pad_and_stack(span_embeds)
+
+        # Weight attention values using softmax
+        attn_weights = F.softmax(padded_attns, dim=1)
+
+        # Compute self-attention over embeddings (x_hat)
+        attn_embeds = torch.sum(torch.mul(padded_embeds, attn_weights), dim=1)
+
+        # Compute span widths (i.e. lengths), embed them
+        widths = self.width([len(s) for s in spans])
+
+        # Get LSTM state for start, end indexes
+        start_end = torch.stack([torch.cat((states[s.i1], states[s.i2]))
+                                 for s in spans])
+
+        # Cat it all together to get g_i, our span representation
+        g_i = torch.cat((start_end, attn_embeds, widths), dim=1)
+
+        # Compute each span's unary mention score
+        mention_scores = self.score(g_i)
+
+        # Update span object attributes
+        # (use detach so we don't get crazy gradients by splitting the tensors)
+        spans = [
+            attr.evolve(span, si=si)
+            for span, si in zip(spans, mention_scores.detach())
+        ]
+
+        # Prune down to LAMBDA*len(doc) spans
+        spans = prune(spans, len(doc))
+
+        # Update antencedent set (yi) for each mention up to K previous antecedents
+        spans = [
+            attr.evolve(span, yi=spans[max(0, idx - K):idx])
+            for idx, span in enumerate(spans)
+        ]
+
+        return spans, g_i, mention_scores
+
 
 
 class PairwiseScore(nn.Module):
@@ -237,10 +287,67 @@ class PairwiseScore(nn.Module):
         self.score = Score(gij_dim)
 
     def forward(self, spans, g_i, mention_scores):
-        """ Compute pairwise score for spans and their up to K antecedents
-        """
-        pass
-        # TODO:
+        """ Compute pairwise score for spans and their up to K antecedents """
+
+        # Extract raw features
+        mention_ids, antecedent_ids, distances = zip(*[
+            (i.id, j.id, i.i2 - j.i1)
+            for i in spans
+            for j in i.yi
+        ])
+
+        # For indexing a tensor efficiently
+        mention_ids = to_cuda(torch.tensor(mention_ids))
+        antecedent_ids = to_cuda(torch.tensor(antecedent_ids))
+
+        # Embed them
+        phi = self.distance(distances)
+
+        # Extract their span representations from the g_i matrix
+        i_g = torch.index_select(g_i, 0, mention_ids)
+        j_g = torch.index_select(g_i, 0, antecedent_ids)
+
+        # Create s_ij representations
+        pairs = torch.cat((i_g, j_g, i_g * j_g, phi), dim=1)
+
+        # Extract mention score for each mention and its antecedents
+        s_i = torch.index_select(mention_scores, 0, mention_ids)
+        s_j = torch.index_select(mention_scores, 0, antecedent_ids)
+
+        # Score pairs of spans for coreference link
+        s_ij = self.score(pairs)
+
+        # Compute pairwise scores for coreference links between each mention and its antecedents
+        coref_scores = torch.sum(torch.cat((s_i, s_j, s_ij), dim=1), dim=1, keepdim=True)
+
+        # Update spans with set of possible antecedents' indices, scores
+        spans = [
+            attr.evolve(span,
+                        yi_idx=[((y.i1, y.i2), (span.i1, span.i2)) for y in span.yi]
+                        )
+            for span, score, (i1, i2) in zip(spans, coref_scores, pairwise_indexes(spans))
+        ]
+
+        # Get antecedent indexes for each span
+        antecedent_idx = [len(s.yi) for s in spans if len(s.yi)]
+
+        # Split coref scores so each list entry are scores for its antecedents, only.
+        # (NOTE that first index is a special case for torch.split, so we handle it here)
+        split_scores = [to_cuda(torch.tensor([]))] + list(torch.split(coref_scores, antecedent_idx, dim=0))
+
+        epsilon = to_var(torch.tensor([[0.]]))
+        with_epsilon = [torch.cat((score, epsilon), dim=0) for score in split_scores]
+
+        # Batch and softmax
+        probs = [F.softmax(tensr) for tensr in with_epsilon]
+
+        # Pad the scores for each one with a dummy value, 1000 so that the tensors can
+        # be of the same dimension for calculation loss and what not.
+        probs, _ = pad_and_stack(probs, value=1000)
+        probs = probs.squeeze()
+
+        return spans, probs
+
 
 
 class CorefModel(nn.Module):
@@ -305,18 +412,21 @@ class CorefModel(nn.Module):
         # which capture the sequential and contextual information of the document.
         # embeds == These are the original token embeddings,
         # which are dense vector representations of the tokens without contextual information.
-        logger.info(f"Encode document {doc}")
+        logger.info(f"Encode document {doc.filename}")
         states, embeds = self.encoder(doc)
 
-        pass
-        # # Get mention scores for each span, prune
-        # spans, g_i, mention_scores = self.score_spans(states, embeds, doc)
-        #
-        # # Get pairwise scores for each span combo
-        # spans, coref_scores = self.score_pairs(spans, g_i, mention_scores)
-        #
-        # return spans, coref_scores
+        # Get mention scores for each span, prune
+        # spans: The spans of text (sub-sequences of tokens) identified as potential mentions.
+        # g_i: The span representations (features) for each identified span.
+        # mention_scores: The scores for each span, indicating the likelihood that the span is a mention.
+        logger.info(f"Calculate mention scores for document {doc.filename}")
+        spans, g_i, mention_scores = self.score_spans(states, embeds, doc)
 
+        # Get pairwise scores for each span combo
+        logger.info(f"Calculate pairwise scores for document {doc.filename}")
+        spans, coref_scores = self.score_pairs(spans, g_i, mention_scores)
+
+        return spans, coref_scores
 
 
 
@@ -352,7 +462,6 @@ class Trainer:
 
         for epoch in range(1, num_epochs + 1):
             self.train_epoch(epoch, *args, **kwargs)  # training each epoch
-
 
             logger.info(" Start saving the model.")
             self.save_model(str(datetime.now()))  # save the model with a filename based on the current date and time.
@@ -419,10 +528,12 @@ class Trainer:
         mentions_found, corefs_found, corefs_chosen = 0, 0, 0
 
         # Predict coref probabilities for each span in a document
-        spans, probs = self.model(document)
         #  spans == These are the spans (segments) of text that the model identifies as potential coreference mentions.
         # probs == These are the probabilities associated with each span,
         # indicating the model's confidence that the span is a coreference mention.
+        spans, probs = self.model(document)
+
+        pass
 
         # Get log-likelihood of correct antecedents implied by gold clustering
         # gold_indexes = to_cuda(torch.zeros_like(probs))
