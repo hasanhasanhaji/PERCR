@@ -106,8 +106,8 @@ class DocumentEncoder(nn.Module):
                             batch_first=True)
 
         # Dropout
-        self.emb_dropout = nn.Dropout(0.50, inplace=True)
-        self.lstm_dropout = nn.Dropout(0.20, inplace=True)  # Applied to the outputs of the LSTM layers.
+        self.emb_dropout = nn.Dropout(0.50)
+        self.lstm_dropout = nn.Dropout(0.20)  # Applied to the outputs of the LSTM layers.
 
     def forward(self, doc):
         """
@@ -122,13 +122,17 @@ class DocumentEncoder(nn.Module):
         packed, reorder = pack(embeds)
 
         # Apply embedding dropout
-        self.emb_dropout(packed[0])
+        packed_data = self.emb_dropout(packed.data)
+        packed = torch.nn.utils.rnn.PackedSequence(packed_data, packed.batch_sizes, packed.sorted_indices,
+                                                   packed.unsorted_indices)
 
         # Pass an LSTM over the embeds
         output, _ = self.lstm(packed)
 
         # Apply dropout
-        self.lstm_dropout(output[0])
+        output_data = self.lstm_dropout(output.data)
+        output = torch.nn.utils.rnn.PackedSequence(output_data, output.batch_sizes, output.sorted_indices,
+                                                   output.unsorted_indices)
 
         # Undo the packing/padding required for batching
         states = unpack_and_unpad(output, reorder)
@@ -533,6 +537,8 @@ class Trainer:
         # indicating the model's confidence that the span is a coreference mention.
         spans, probs = self.model(document)
 
+        pass
+
         # Get log-likelihood of correct antecedents implied by gold clustering
         gold_indexes = to_cuda(torch.zeros_like(probs))
         for idx, span in enumerate(spans):
@@ -561,7 +567,9 @@ class Trainer:
 
         # Negative marginal log-likelihood
         eps = 1e-8
-        loss = torch.sum(torch.log(torch.sum(torch.mul(probs, gold_indexes), dim=1).clamp_(eps, 1 - eps), dim=0) * -1)
+        loss = torch.sum(torch.log(torch.sum(torch.mul(probs, gold_indexes), dim=1).clamp(min=eps, max=1 - eps)) * -1)
+
+        pass
 
         # Backpropagate
         loss.backward()
@@ -572,7 +580,7 @@ class Trainer:
         return (loss.item(), mentions_found, total_mentions,
                 corefs_found, total_corefs, corefs_chosen)
 
-
+        pass
 
 
 if __name__ == "__main__":
