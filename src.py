@@ -584,7 +584,11 @@ class Trainer:
 
     def save_model(self, savepath):
         """ Save model state dictionary """
-        torch.save(self.model.state_dict(), savepath + '.pth')
+        model_dir = "data/model/"
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
+        valid_savepath = os.path.join(model_dir, savepath.replace(":", "-") + '.pth')
+        torch.save(self.model.state_dict(), valid_savepath)
 
     def load_model(self, loadpath):
         """ Load state dictionary into model """
