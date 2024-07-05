@@ -582,6 +582,15 @@ class Trainer:
 
         pass
 
+    def save_model(self, savepath):
+        """ Save model state dictionary """
+        torch.save(self.model.state_dict(), savepath + '.pth')
+
+    def load_model(self, loadpath):
+        """ Load state dictionary into model """
+        state = torch.load(loadpath)
+        self.model.load_state_dict(state)
+        self.model = to_cuda(self.model)
 
 if __name__ == "__main__":
     # Create coreference resolution model
