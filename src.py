@@ -606,7 +606,7 @@ class Trainer:
 
         # Run perl script
         print('Running Perl evaluation script...')
-        p = Popen(['perl', eval_script, 'all', golds_file, preds_file], stdout=PIPE)
+        p = Popen([eval_script, 'all', golds_file, preds_file], stdout=PIPE)
         stdout, stderr = p.communicate()
         results = str(stdout).split('TOTALS')[-1]
 
