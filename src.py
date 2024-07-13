@@ -9,6 +9,8 @@ import torch.optim as optim
 from conll_mehr import *
 from utils import *
 from datetime import datetime
+from subprocess import Popen, PIPE
+import networkx as nx
 
 # configure logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -279,7 +281,6 @@ class MentionScore(nn.Module):
         return spans, g_i, mention_scores
 
 
-
 class PairwiseScore(nn.Module):
     """ Coreference pair scoring module
     """
@@ -351,7 +352,6 @@ class PairwiseScore(nn.Module):
         probs = probs.squeeze()
 
         return spans, probs
-
 
 
 class CorefModel(nn.Module):
@@ -433,7 +433,6 @@ class CorefModel(nn.Module):
         return spans, coref_scores
 
 
-
 class Trainer:
     """ Class dedicated to training and evaluating the model
     """
@@ -461,7 +460,7 @@ class Trainer:
                                                    step_size=100,
                                                    gamma=0.001)  # adjusts the learning rate during training
 
-    def train(self, num_epochs, eval_interval=10, *args, **kwargs):
+    def train(self, num_epochs, eval_interval=1, *args, **kwargs):
         """ Training  the model """
 
         for epoch in range(1, num_epochs + 1):
@@ -595,6 +594,121 @@ class Trainer:
         state = torch.load(loadpath)
         self.model.load_state_dict(state)
         self.model = to_cuda(self.model)
+
+    def evaluate(self, val_corpus, eval_script='eval/scorer.pl'):
+        """ Evaluate a corpus of CoNLL-2012 gold files """
+
+        # Predict files
+        print('Evaluating on validation corpus...')
+        predicted_docs = [self.predict(doc) for doc in tqdm(val_corpus)]
+        val_corpus.docs = predicted_docs
+
+        # Output results
+        golds_file, preds_file = self.to_conll(val_corpus, eval_script)
+
+        # Run perl script
+        print('Running Perl evaluation script...')
+        p = Popen([eval_script, 'all', golds_file, preds_file], stdout=PIPE)
+        stdout, stderr = p.communicate()
+        results = str(stdout).split('TOTALS')[-1]
+
+        # Write the results out for later viewing
+        with open('data/preds/results.txt', 'w+') as f:
+            f.write(results)
+            f.write('\n\n\n')
+
+        return results
+
+    def predict(self, doc):
+        """ Predict coreference clusters in a document """
+
+        # Set to eval mode
+        self.model.eval()
+
+        # Initialize graph (mentions are nodes and edges indicate coref linkage)
+        graph = nx.Graph()
+
+        # Pass the document through the model
+        spans, probs = self.model(doc)
+
+        # Cluster found coreference links
+        for i, span in enumerate(spans):
+
+            # Loss implicitly pushes coref links above 0, rest below 0
+            found_corefs = [idx
+                            for idx, _ in enumerate(span.yi_idx)
+                            if probs[i, idx] > probs[i, len(span.yi_idx)]]
+
+            # If we have any
+            if any(found_corefs):
+
+                # Add edges between all spans in the cluster
+                for coref_idx in found_corefs:
+                    link = spans[coref_idx]
+                    graph.add_edge((span.i1, span.i2), (link.i1, link.i2))
+
+        # Extract clusters as nodes that share an edge
+        clusters = list(nx.connected_components(graph))
+
+        # Initialize token tags
+        token_tags = [[] for _ in range(len(doc))]
+
+        # Add in cluster ids for each cluster of corefs in place of token tag
+        for idx, cluster in enumerate(clusters):
+            for i1, i2 in cluster:
+
+                if i1 == i2:
+                    token_tags[i1].append(f'({idx})')
+
+                else:
+                    token_tags[i1].append(f'({idx}')
+                    token_tags[i2].append(f'{idx})')
+
+        doc.tags = ['|'.join(t) if t else '-' for t in token_tags]
+
+        return doc
+
+    def to_conll(self, val_corpus, eval_script):
+        """ Write to out_file the predictions, return CoNLL metrics results """
+
+        # Make predictions directory if there isn't one already
+        golds_file, preds_file = '../preds/golds.txt', '../preds/predictions.txt'
+        if not os.path.exists('../preds/'):
+            os.makedirs('../preds/')
+
+        # Combine all gold files into a single file (Perl script requires this)
+        golds_file_content = flatten([doc.raw_text for doc in val_corpus])
+        with io.open(golds_file, 'w', encoding='utf-8', errors='strict') as f:
+            for line in golds_file_content:
+                f.write(line)
+
+        # Dump predictions
+        with io.open(preds_file, 'w', encoding='utf-8', errors='strict') as f:
+
+            for doc in val_corpus:
+
+                current_idx = 0
+
+                for line in doc.raw_text:
+
+                    # Indicates start / end of document or line break
+                    if line.startswith('#begin') or line.startswith('#end') or line == '\n':
+                        f.write(line)
+                        continue
+                    else:
+                        # Replace the coref column entry with the predicted tag
+                        tokens = line.split()
+                        tokens[-1] = doc.tags[current_idx]
+
+                        # Increment by 1 so tags are still aligned
+                        current_idx += 1
+
+                        # Rewrite it back out
+                        f.write('\t'.join(tokens))
+                    f.write('\n')
+
+        return golds_file, preds_file
+
 
 if __name__ == "__main__":
     # Create coreference resolution model
