@@ -176,3 +176,4 @@ def pairwise_indexes(spans):
 def to_var(x):
     """ Convert a tensor to a backprop tensor and put on GPU """
     return to_cuda(x).requires_grad_()
+

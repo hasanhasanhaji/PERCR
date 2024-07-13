@@ -577,7 +577,7 @@ class Trainer:
         return (loss.item(), mentions_found, total_mentions,
                 corefs_found, total_corefs, corefs_chosen)
 
-        pass
+
 
     def save_model(self, savepath):
         """ Save model state dictionary """
