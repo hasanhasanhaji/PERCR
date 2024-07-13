@@ -437,15 +437,13 @@ class Trainer:
     """ Class dedicated to training and evaluating the model
     """
 
-    def __init__(self, model, train_corpus, test_corpus,
+    def __init__(self, model, train_corpus, test_corpus, dev_corpus,
                  steps, lr=1e-3):
         self.model = to_cuda(model)
 
-        # create train corpus and eval corpus
-        random.seed(42)
-        split_idx = int(0.9 * len(train_corpus.docs))
-        self.train_corpus = train_corpus[:split_idx]
-        self.val_corpus = train_corpus[split_idx:]
+        self.train_corpus = list(train_corpus)
+
+        self.val_corpus = dev_corpus
 
         self.test_corpus = test_corpus
         self.steps = steps
@@ -608,7 +606,7 @@ class Trainer:
 
         # Run perl script
         print('Running Perl evaluation script...')
-        p = Popen([eval_script, 'all', golds_file, preds_file], stdout=PIPE)
+        p = Popen(['perl', eval_script, 'all', golds_file, preds_file], stdout=PIPE)
         stdout, stderr = p.communicate()
         results = str(stdout).split('TOTALS')[-1]
 
@@ -672,9 +670,9 @@ class Trainer:
         """ Write to out_file the predictions, return CoNLL metrics results """
 
         # Make predictions directory if there isn't one already
-        golds_file, preds_file = '../preds/golds.txt', '../preds/predictions.txt'
-        if not os.path.exists('../preds/'):
-            os.makedirs('../preds/')
+        golds_file, preds_file = 'data/preds/golds.txt', 'data/preds/predictions.txt'
+        if not os.path.exists('data/preds/'):
+            os.makedirs('data/preds/')
 
         # Combine all gold files into a single file (Perl script requires this)
         golds_file_content = flatten([doc.raw_text for doc in val_corpus])
@@ -724,8 +722,11 @@ if __name__ == "__main__":
     train_corpus = read_corpus('data/Mehr/train-dev/')
     test_corpus = read_corpus('data/Mehr/test/')
 
+    # Split the train_corpus into train and dev sets
+    train_corpus, dev_corpus = train_corpus.split_corpus()
+
     # ?? train for 150 epochs, each  train 100 documents each doc up to 50 sentences for lstm
-    trainer = Trainer(model, train_corpus, test_corpus, steps=5)
+    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=1)
 
     logger.info("Training and test corpora loaded successfully.")
     trainer.train(150)

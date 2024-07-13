@@ -153,6 +153,14 @@ class Corpus:
 
         return vocab, char_vocab
 
+    def split_corpus(self, dev_size=0.1, seed=42):
+        """ Split the corpus into training and development sets """
+        random.seed(seed)
+        random.shuffle(self.docs)
+        split_idx = int(len(self.docs) * (1 - dev_size))
+        train_docs = self.docs[:split_idx]
+        dev_docs = self.docs[split_idx:]
+        return Corpus(train_docs), Corpus(dev_docs)
 
 class Document:
     def __init__(self, raw_text, tokens, corefs, filename):
