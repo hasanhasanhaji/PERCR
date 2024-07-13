@@ -423,11 +423,11 @@ class CorefModel(nn.Module):
         # spans: The spans of text (sub-sequences of tokens) identified as potential mentions.
         # g_i: The span representations (features) for each identified span.
         # mention_scores: The scores for each span, indicating the likelihood that the span is a mention.
-        logger.info(f"Calculate mention scores for document {doc.filename}")
+        # logger.info(f"Calculate mention scores for document {doc.filename}")
         spans, g_i, mention_scores = self.score_spans(states, embeds, doc)
 
         # Get pairwise scores for each span combo
-        logger.info(f"Calculate pairwise scores for document {doc.filename}")
+        # logger.info(f"Calculate pairwise scores for document {doc.filename}")
         spans, coref_scores = self.score_pairs(spans, g_i, mention_scores)
 
         return spans, coref_scores
