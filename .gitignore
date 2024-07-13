@@ -7,6 +7,7 @@ __pycache__/
 *.so
 data/train-dev-template
 data/test-temp
+data/model
 # Distribution / packaging
 .Python
 build/
