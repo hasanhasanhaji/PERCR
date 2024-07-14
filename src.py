@@ -1,4 +1,5 @@
 import logging
+import configparser
 import random
 import os
 import re
@@ -577,8 +578,6 @@ class Trainer:
         return (loss.item(), mentions_found, total_mentions,
                 corefs_found, total_corefs, corefs_chosen)
 
-
-
     def save_model(self, savepath):
         """ Save model state dictionary """
         model_dir = "data/model/"
@@ -709,18 +708,20 @@ class Trainer:
 
 
 if __name__ == "__main__":
+    # initialize configuration file
+    config = configparser.ConfigParser()
+    config.read('config.ini')  # Load configuration from file
+
     # Create coreference resolution model
-
-    # embeds_dim = the dimensionality of token embeddings
-    # hidden dim = the hidden dim of LSTM
-
-    # Encoder type === can choose between ['lstm','HooshvareLab/bert-fa-zwnj-base']
     logger.info("Creating coref model...")
-    model = CorefModel(embed_dim=400, hidden_dim=200, encoder_type='lstm')
+    model = CorefModel(
+        embed_dim=config.getint('MODEL', 'embed_dim'),
+        hidden_dim=config.getint('MODEL', 'hidden_dim'),
+        encoder_type=config.get('MODEL', 'encoder_type'))
 
     logger.info("Reading training and test corpora...")
-    train_corpus = read_corpus('data/Mehr/train-dev/')
-    test_corpus = read_corpus('data/Mehr/test/')
+    train_corpus = read_corpus(config.get('DATA', 'train_corpus_path'))
+    test_corpus = read_corpus(config.get('DATA', 'test_corpus_path'))
 
     # Split the train_corpus into train and dev sets
     train_corpus, dev_corpus = train_corpus.split_corpus()
