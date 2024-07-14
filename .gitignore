@@ -8,6 +8,8 @@ __pycache__/
 data/train-dev-temp
 data/test-temp
 data/model
+data/Mehr/test-temp
+data/Mehr/train-dev-temp
 # Distribution / packaging
 .Python
 build/
