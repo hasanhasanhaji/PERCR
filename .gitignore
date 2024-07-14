@@ -154,3 +154,5 @@ cython_debug/
 #.idea/
 data/vectors/word2vec_wikipedia_50.txt
 /data/model
+/data/Mehr
+/data/Mehr

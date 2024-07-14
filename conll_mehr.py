@@ -153,7 +153,7 @@ class Corpus:
 
         return vocab, char_vocab
 
-    def split_corpus(self, dev_size=0.5, seed=42):
+    def split_corpus(self, dev_size=0.1, seed=42):
         """ Split the corpus into training and development sets """
         random.seed(seed)
         random.shuffle(self.docs)
@@ -268,7 +268,7 @@ def load_file(filename):
                     continue
             except:
                 index += 1
-                print("Error occurred while processing line:")
+                # print("Error occurred while processing line:")
     return documents
 
 

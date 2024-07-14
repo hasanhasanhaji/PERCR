@@ -458,7 +458,7 @@ class Trainer:
                                                    step_size=100,
                                                    gamma=0.001)  # adjusts the learning rate during training
 
-    def train(self, num_epochs, eval_interval=1, *args, **kwargs):
+    def train(self, num_epochs, eval_interval=5, *args, **kwargs):
         """ Training  the model """
 
         for epoch in range(1, num_epochs + 1):
@@ -726,7 +726,7 @@ if __name__ == "__main__":
     train_corpus, dev_corpus = train_corpus.split_corpus()
 
     # ?? train for 150 epochs, each  train 100 documents each doc up to 50 sentences for lstm
-    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=1)
+    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=30)
 
     logger.info("Training and test corpora loaded successfully.")
-    trainer.train(150)
+    trainer.train(50)
