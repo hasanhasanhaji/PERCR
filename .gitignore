@@ -5,7 +5,7 @@ __pycache__/
 .idea
 # C extensions
 *.so
-data/train-dev-template
+data/train-dev-temp
 data/test-temp
 data/model
 # Distribution / packaging
@@ -154,5 +154,4 @@ cython_debug/
 #.idea/
 data/vectors/word2vec_wikipedia_50.txt
 /data/model
-/data/Mehr
-/data/Mehr
+
