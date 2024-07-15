@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 import torch.optim as optim
-from conll_mehr import *
+from conll_mehr import read_corpus, LazyVectors
 from utils import *
 from datetime import datetime
 from subprocess import Popen, PIPE
@@ -24,15 +24,17 @@ class CharCNN(nn.Module):
     """
 
     unk_idx = 1  # Sets the index for unknown characters.
-    vocab = read_corpus('data/Mehr/train-dev').char_vocab  # Loads the character vocabulary from the training data
-    _stoi = {char: idx + 2 for idx, char in enumerate(
-        vocab)}  # Creates a dictionary mapping each character to an index, starting from 2 to reserve indices 0 and
+
     # 1 for padding and unknown characters.
     pad_size = 15  # Sets the fixed size for padding sequences.
 
-    def __init__(self, filters, char_dim=8):
+    def __init__(self, filters, char_vocab=None, char_dim=8):
         super().__init__()
-
+        self.vocab = char_vocab
+        self._stoi = {char: idx + 2 for idx, char in enumerate(
+            self.vocab)}  # Creates a dictionary mapping each character to an index,
+        # starting from 2 to reserve indices 0 and
+        # 1 for padding and unknown characters.
         self.embeddings = nn.Embedding(len(self.vocab) + 2, char_dim,
                                        padding_idx=0)  # Creates an embedding layer for character embeddings,
         # with padding index set to 0.
@@ -80,7 +82,7 @@ class DocumentEncoder(nn.Module):
     number of filters in the character-level CNN), and n_layers (number of layers in the LSTM) as parameters.
     """
 
-    def __init__(self, hidden_dim, char_filters, n_layers=2):
+    def __init__(self, hidden_dim, char_filters, char_vocab=None, n_layers=2):
         super().__init__()
 
         #  Unit vector embeddings >>> normalization
@@ -99,7 +101,7 @@ class DocumentEncoder(nn.Module):
         self.word2vec.weight.requires_grad = False
 
         # Character embedding
-        self.char_embeddings = CharCNN(char_filters)  # Create char nn layer for a sentence
+        self.char_embeddings = CharCNN(char_filters, char_vocab)  # Create char nn layer for a sentence
 
         # Sentence-LSTM
         self.lstm = nn.LSTM(glove_weights.shape[1] + word2vec_weights.shape[1] + char_filters,
@@ -712,19 +714,26 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read('config.ini')  # Load configuration from file
 
+    logger.info("Reading training and test corpora...")
+    train_corpus = read_corpus(config.get('DATA', 'train_corpus_path'))
+    test_corpus = read_corpus(config.get('DATA', 'test_corpus_path'))
+
+    # Share the vocabulary for both GLOVE and W2VEC
+    corpus_vocab = train_corpus.vocab
+    corpus_char_vocab = train_corpus.char_vocab
+
+    GLOVE = LazyVectors.from_corpus(corpus_vocab, name='glove_arman_300.txt', cache='data/vectors/')
+    W2VEC = LazyVectors.from_corpus(corpus_vocab, name='word2vec_wikipedia_50.txt', cache='data/vectors/')
+
+    # Split the train_corpus into train and dev sets
+    train_corpus, dev_corpus = train_corpus.split_corpus()
     # # Create coreference resolution model
     # logger.info("Creating coref model...")
     # model = CorefModel(
     #     embed_dim=config.getint('MODEL', 'embed_dim'),
     #     hidden_dim=config.getint('MODEL', 'hidden_dim'),
-    #     encoder_type=config.get('MODEL', 'encoder_type'))
-
-    logger.info("Reading training and test corpora...")
-    # train_corpus = read_corpus(config.get('DATA', 'train_corpus_path'))
-    test_corpus = read_corpus(config.get('DATA', 'test_corpus_path'))
-
-    # Split the train_corpus into train and dev sets
-    train_corpus, dev_corpus = train_corpus.split_corpus()
+    #     encoder_type=config.get('MODEL', 'encoder_type'),
+    #     char_vocab= corpus_char_vocab  # Pass char_vocab directly)
 
     # ?? train for 150 epochs, each  train 100 documents each doc up to 50 sentences for lstm
     trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=30)
