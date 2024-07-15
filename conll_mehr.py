@@ -1,5 +1,6 @@
 import glob
 import torch
+import torchtext; torchtext.disable_torchtext_deprecation_warning()
 from torchtext.vocab import Vectors
 import random
 import os

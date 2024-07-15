@@ -712,12 +712,12 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read('config.ini')  # Load configuration from file
 
-    # Create coreference resolution model
-    logger.info("Creating coref model...")
-    model = CorefModel(
-        embed_dim=config.getint('MODEL', 'embed_dim'),
-        hidden_dim=config.getint('MODEL', 'hidden_dim'),
-        encoder_type=config.get('MODEL', 'encoder_type'))
+    # # Create coreference resolution model
+    # logger.info("Creating coref model...")
+    # model = CorefModel(
+    #     embed_dim=config.getint('MODEL', 'embed_dim'),
+    #     hidden_dim=config.getint('MODEL', 'hidden_dim'),
+    #     encoder_type=config.get('MODEL', 'encoder_type'))
 
     logger.info("Reading training and test corpora...")
     train_corpus = read_corpus(config.get('DATA', 'train_corpus_path'))
