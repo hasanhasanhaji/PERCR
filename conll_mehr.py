@@ -1,6 +1,8 @@
 import glob
 import torch
-import torchtext; torchtext.disable_torchtext_deprecation_warning()
+import torchtext;
+
+torchtext.disable_torchtext_deprecation_warning()
 from torchtext.vocab import Vectors
 import random
 import os
@@ -163,6 +165,7 @@ class Corpus:
         dev_docs = self.docs[split_idx:]
         return Corpus(train_docs), Corpus(dev_docs)
 
+
 class Document:
     def __init__(self, raw_text, tokens, corefs, filename):
         self.raw_text = raw_text
@@ -211,49 +214,55 @@ class Document:
 
 
 def load_file(filename):
-    """ Load a *._conll file
+    """
+     The function processes the CoNLL file and extracts relevant data for coreference resolution,
+     organizing it into a list of Document objects.
     Input:
         filename: path to the file
-         Output:
-        documents: list of Document class for each document in the file containing:
-         tokens:                   split list of text
-         utts_corefs:
-                coref['label']:     id of the coreference cluster
-                coref['start']:     start index (index of first token in the utterance)
-                coref['end':        end index (index of last token in the utterance)
-                coref['span']:      corresponding span
+    Output:
+        documents: list of Document class for each document in the file containing
+    tokens:                   split list of text
     """
     documents = []
 
     with io.open(filename, 'rt', encoding='utf-8', errors='strict') as f:
+        # index: Token index within the document.
+        # corefs: List of ongoing coreference information of current sentence.
+        # utts_corefs: List of coreference information for the current document.
+        # tokens: List of individual tokens of current document.
+        # text : List of individual tokens of current sentence.
+
         raw_text, tokens, text, utts_corefs, corefs, index = [], [], [], [], [], 0
         for line in f:
             raw_text.append(line)
             cols = line.split()
             try:
-                # End of sentence within a document:
+                # End of sentence within a document for MEHR corpus.
                 if len(cols) == 0:
                     if text:
                         tokens.extend(text), utts_corefs.extend(corefs)
                         text, corefs = [], []
                         continue
-                # End of document: organize the data, append to output, reset variables for next document.
+
+                # End of document for MEHR corpus:
+                # organize the data, append to output, reset variables for next document.
                 elif len(cols) == 2:
                     doc = Document(raw_text, tokens, utts_corefs, filename)
                     documents.append(doc)
                     raw_text, tokens, text, utts_corefs, index = [], [], [], [], 0
+                # If the line has more than seven columns, it's assumed to be a token line.
                 elif len(cols) > 7:
-                    text.append(cols[3])  # add token
+                    text.append(cols[3])  # add token to current line tokens
                     # If the last column isn't a '-', there is a coreference link
                     if cols[-1] != u'-':
                         coref_expr = cols[-1].split(u'|')
                         for token in coref_expr:
                             # Check if coref column token entry contains (, a number, or ).
                             match = re.match(r"^(\(?)(\d+)(\)?)$", token)
-                            label = match.group(2)
+                            label = match.group(2)  # coref number
 
                             # If it does, extract the coref label, its start index,
-                            if match.group(1) == u'(':
+                            if match.group(1) == u'(':  # start of coref expression
                                 corefs.append({'label': label,
                                                'start': index,
                                                'end': None})
@@ -269,7 +278,7 @@ def load_file(filename):
                     continue
             except:
                 index += 1
-                # print("Error occurred while processing line:")
+
     return documents
 
 

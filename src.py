@@ -720,7 +720,7 @@ if __name__ == "__main__":
     #     encoder_type=config.get('MODEL', 'encoder_type'))
 
     logger.info("Reading training and test corpora...")
-    train_corpus = read_corpus(config.get('DATA', 'train_corpus_path'))
+    # train_corpus = read_corpus(config.get('DATA', 'train_corpus_path'))
     test_corpus = read_corpus(config.get('DATA', 'test_corpus_path'))
 
     # Split the train_corpus into train and dev sets
