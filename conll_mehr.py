@@ -1,8 +1,7 @@
 import glob
 import torch
-import torchtext;
+import torchtext; torchtext.disable_torchtext_deprecation_warning()
 
-torchtext.disable_torchtext_deprecation_warning()
 from torchtext.vocab import Vectors
 import random
 import os
@@ -165,7 +164,6 @@ class Corpus:
         dev_docs = self.docs[split_idx:]
         return Corpus(train_docs), Corpus(dev_docs)
 
-
 class Document:
     def __init__(self, raw_text, tokens, corefs, filename):
         self.raw_text = raw_text
@@ -219,9 +217,14 @@ def load_file(filename):
      organizing it into a list of Document objects.
     Input:
         filename: path to the file
-    Output:
-        documents: list of Document class for each document in the file containing
-    tokens:                   split list of text
+         Output:
+        documents: list of Document class for each document in the file containing:
+         tokens:                   split list of text
+         utts_corefs:
+                coref['label']:     id of the coreference cluster
+                coref['start']:     start index (index of first token in the utterance)
+                coref['end':        end index (index of last token in the utterance)
+                coref['span']:      corresponding span
     """
     documents = []
 
@@ -231,7 +234,6 @@ def load_file(filename):
         # utts_corefs: List of coreference information for the current document.
         # tokens: List of individual tokens of current document.
         # text : List of individual tokens of current sentence.
-
         raw_text, tokens, text, utts_corefs, corefs, index = [], [], [], [], [], 0
         for line in f:
             raw_text.append(line)
@@ -243,9 +245,7 @@ def load_file(filename):
                         tokens.extend(text), utts_corefs.extend(corefs)
                         text, corefs = [], []
                         continue
-
-                # End of document for MEHR corpus:
-                # organize the data, append to output, reset variables for next document.
+                # End of document: organize the data, append to output, reset variables for next document.
                 elif len(cols) == 2:
                     doc = Document(raw_text, tokens, utts_corefs, filename)
                     documents.append(doc)
@@ -259,7 +259,7 @@ def load_file(filename):
                         for token in coref_expr:
                             # Check if coref column token entry contains (, a number, or ).
                             match = re.match(r"^(\(?)(\d+)(\)?)$", token)
-                            label = match.group(2)  # coref number
+                            label = match.group(2)
 
                             # If it does, extract the coref label, its start index,
                             if match.group(1) == u'(':  # start of coref expression
@@ -276,10 +276,15 @@ def load_file(filename):
                     index += 1
                 else:
                     continue
-            except:
+
+
+            except Exception as e:
                 index += 1
                 print(filename)
+                print(f"Error processing line: {line}")  # Print the line causing the error
 
+                continue  # Continue to the next line after logging the error
+                # print("Error occurred while processing line:")
 
     return documents
 
@@ -306,10 +311,3 @@ def lookup_tensor(tokens, vectorizer):
     return to_cuda(torch.tensor([vectorizer.stoi(t) for t in tokens]))
 
 
-# GLOVE = LazyVectors.from_corpus(read_corpus('data/Mehr/train-dev/').vocab,
-#                                 name='glove_arman_300.txt',
-#                                 cache='data/vectors/')
-#
-# W2VEC = LazyVectors.from_corpus(read_corpus('data/Mehr/train-dev/').vocab,
-#                                 name='word2vec_wikipedia_50.txt',
-#                                 cache='data/vectors/')
