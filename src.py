@@ -2,9 +2,9 @@ import logging
 import configparser
 import random
 import os
-import re
+import io
 import torch.nn as nn
-import torch.nn.functional as F
+# import torch.nn.functional as F
 from tqdm import tqdm
 import torch.optim as optim
 from conll_mehr import read_corpus, LazyVectors
