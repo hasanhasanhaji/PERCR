@@ -715,8 +715,8 @@ if __name__ == "__main__":
     config.read('config.ini')  # Load configuration from file
 
     logger.info("Reading training and test corpora...")
-    train_corpus = read_corpus(config.get('DATA', 'train_corpus_path'))
-    test_corpus = read_corpus(config.get('DATA', 'test_corpus_path'))
+    train_corpus = read_corpus(config.get('DATA', 'mehr_corpus_path_train'))
+    test_corpus = read_corpus(config.get('DATA', 'mehr_corpus_path_test'))
 
     # Share the vocabulary for both GLOVE and W2VEC
     corpus_vocab = train_corpus.vocab
