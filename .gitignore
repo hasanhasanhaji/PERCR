@@ -10,6 +10,7 @@ data/test-temp
 data/model
 data/Mehr/test-temp
 data/Mehr/train-dev-temp
+data/RCDAT
 # Distribution / packaging
 .Python
 build/
