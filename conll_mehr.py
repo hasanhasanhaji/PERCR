@@ -1,6 +1,8 @@
 import glob
 import torch
-import torchtext; torchtext.disable_torchtext_deprecation_warning()
+import torchtext;
+
+torchtext.disable_torchtext_deprecation_warning()
 
 from torchtext.vocab import Vectors
 import random
@@ -164,6 +166,7 @@ class Corpus:
         dev_docs = self.docs[split_idx:]
         return Corpus(train_docs), Corpus(dev_docs)
 
+
 class Document:
     def __init__(self, raw_text, tokens, corefs, filename):
         self.raw_text = raw_text
@@ -211,7 +214,7 @@ class Document:
         return self
 
 
-def load_file(filename):
+def load_mehr_file(filename):
     """
      The function processes the CoNLL file and extracts relevant data for coreference resolution,
      organizing it into a list of Document objects.
@@ -289,14 +292,24 @@ def load_file(filename):
     return documents
 
 
-def read_corpus(path):
+def load_rcdat_file(filename):
+    pass
+
+
+def read_corpus(path, corpus_type):
     """
-    read all files in current directory.
-    :param path: the path of corpus
-    :return: all structured files in corpus
+    Reads all files in the current directory based on the specified corpus type.
+
+    Args:
+        path (str): The path to the corpus directory.
+        corpus_type (str): The type of corpus ("mehr" or "rcdat").
+
+    Returns:
+        Corpus: A `Corpus` object containing the loaded documents.
     """
+    load_function = load_mehr_file if corpus_type == "mehr" else load_rcdat_file
     conll_files = glob.glob(os.path.join(path, '*.conll'))
-    return Corpus(flatten([load_file(file) for file in conll_files]))
+    return Corpus(flatten([load_function(file) for file in conll_files]))
 
 
 def to_cuda(x):
@@ -309,5 +322,3 @@ def to_cuda(x):
 def lookup_tensor(tokens, vectorizer):
     """ Convert a sentence to an embedding lookup tensor """
     return to_cuda(torch.tensor([vectorizer.stoi(t) for t in tokens]))
-
-
