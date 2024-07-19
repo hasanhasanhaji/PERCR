@@ -307,7 +307,7 @@ def load_rcdat_file(filename):
             if not cols:  # Skip empty lines
                 continue
 
-            sentence_index = int(cols[0])
+            sentence_index = int(cols[1])
             if sentence_index != current_sentence_index:  # New sentence
                 utts_corefs.extend(corefs)
                 corefs = []
@@ -319,22 +319,35 @@ def load_rcdat_file(filename):
             coref_column = cols[-1]
 
             if coref_column != "-":
-                matches = re.finditer(r"(\(*(\d+)\)*)", coref_column)
-                for match in matches:
-                    label = match.group(2)
-                    if match.group().startswith("("):  # Opening parenthesis
+                label = ""
+                i = 0
+
+                while i < len(coref_column):
+                    char = coref_column[i]
+                    if char.isdigit():
+                        label += char
+                    elif char == '(':  # Opening parenthesis
                         if current_chain is None or current_chain['label'] != label:
-                            # Start a new chain if there's no ongoing chain or the label is different
                             current_chain = {'label': label, 'start': len(tokens) - 1, 'end': None}
                             corefs.append(current_chain)
-                    elif match.group().endswith(")"):  # Closing parenthesis
+                        label = ""  # Reset label for potential next coreference
+                    elif char == ')':  # Closing parenthesis
                         if current_chain is not None and current_chain['label'] == label:
-                            # End the current chain if the label matches
                             current_chain['end'] = len(tokens) - 1
-                            current_chain = None  # Reset for the next potential chain
-                    else:  # Single-token coreference
-                        corefs.append({'label': label, 'start': len(tokens) - 1, 'end': len(tokens) - 1})
+                            current_chain = None
+                        label = ""  # Reset label
+                    elif char == '*':
+                        pass
 
+                    i += 1
+
+                # Handle leftover label after the loop (single-token coreference)
+                if label:
+                    corefs.append({'label': label, 'start': len(tokens) - 1, 'end': len(tokens) - 1})
+
+        # Add a period to the last token of the document
+        if tokens:  # Ensure there are tokens in the document
+            tokens[-1] += '.'
         # Add the last document
         doc = Document(raw_text, tokens, utts_corefs, filename)
         documents.append(doc)
