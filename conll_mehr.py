@@ -347,7 +347,7 @@ def load_rcdat_file(filename):
 
         # Add a period to the last token of the document
         if tokens:  # Ensure there are tokens in the document
-            tokens[-1] += '.'
+            tokens.append('.')
         # Add the last document
         doc = Document(raw_text, tokens, utts_corefs, filename)
         documents.append(doc)
