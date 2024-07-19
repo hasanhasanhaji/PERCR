@@ -293,7 +293,59 @@ def load_mehr_file(filename):
 
 
 def load_rcdat_file(filename):
-    pass
+    """Loads and processes an RCDAT CoNLL file."""
+
+    documents = []
+    current_sentence_index = 0
+    with io.open(filename, 'rt', encoding='utf-8', errors='strict') as f:
+        raw_text, tokens, utts_corefs, corefs = [], [], [], []
+        current_chain = None  # Track the ongoing coreference chain
+
+        for line in f:
+            raw_text.append(line)
+            cols = line.split()
+            if not cols:  # Skip empty lines
+                continue
+
+            sentence_index = int(cols[0])
+            if sentence_index != current_sentence_index:  # New sentence
+                utts_corefs.extend(corefs)
+                corefs = []
+                current_sentence_index = sentence_index
+                current_chain = None  # Reset the chain for the new sentence
+
+            token = cols[3]
+            tokens.append(token)
+            coref_column = cols[-1]
+
+            if coref_column != "-":
+                matches = re.finditer(r"(\(*(\d+)\)*)", coref_column)
+                for match in matches:
+                    label = match.group(2)
+                    if match.group().startswith("("):  # Opening parenthesis
+                        if current_chain is None or current_chain['label'] != label:
+                            # Start a new chain if there's no ongoing chain or the label is different
+                            current_chain = {'label': label, 'start': len(tokens) - 1, 'end': None}
+                            corefs.append(current_chain)
+                    elif match.group().endswith(")"):  # Closing parenthesis
+                        if current_chain is not None and current_chain['label'] == label:
+                            # End the current chain if the label matches
+                            current_chain['end'] = len(tokens) - 1
+                            current_chain = None  # Reset for the next potential chain
+                    else:  # Single-token coreference
+                        corefs.append({'label': label, 'start': len(tokens) - 1, 'end': len(tokens) - 1})
+
+        # Add the last document
+        doc = Document(raw_text, tokens, utts_corefs, filename)
+        documents.append(doc)
+
+    return documents
+
+
+
+
+
+
 
 
 def read_corpus(path, corpus_type):
