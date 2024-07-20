@@ -10,13 +10,11 @@ from utils import *
 from datetime import datetime
 from subprocess import Popen, PIPE
 import networkx as nx
+from model import CorefModel
 
 # configure logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-
 
 
 class Trainer:
@@ -320,10 +318,10 @@ if __name__ == "__main__":
         embed_dim=config.getint('MODEL', 'embed_dim'),
         hidden_dim=config.getint('MODEL', 'hidden_dim'),
         encoder_type=config.get('MODEL', 'encoder_type'),
-        char_vocab= corpus_char_vocab)  # Pass char_vocab directly
+        char_vocab=corpus_char_vocab)  # Pass char_vocab directly
 
-    # ?? train for 150 epochs, each  train 100 documents each doc up to 50 sentences for lstm
-    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=30)
+    # train for 150 epochs, each  train 100 documents each doc up to 50 sentences for lstm
+    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=config.getint('TRAINING', 'mehr_steps'))
 
     logger.info("Training and test corpora loaded successfully.")
-    trainer.train(50)
+    trainer.train(config.getint('TRAINING', 'epochs'))
