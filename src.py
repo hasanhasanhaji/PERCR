@@ -295,13 +295,16 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read('config.ini')  # Load configuration from file
 
-    logger.info("Reading training and test corpora...")
-    train_corpus = read_corpus(config.get('DATA', 'mehr_corpus_path_train'), "mehr")
-    test_corpus = read_corpus(config.get('DATA', 'mehr_corpus_path_test'), "mehr")
+    corpus_type = config.get('DATA', 'corpus_type')
 
-    # If you need to read RCDAT corpus:
-    # train_corpus = read_corpus(config.get('DATA', 'rcdat_corpus_path_train'), "rcdat")
-    # test_corpus = read_corpus(config.get('DATA', 'rcdat_corpus_path_test'), "rcdat")
+
+    logger.info("Reading training and test corpora...")
+    # Read corpus paths from configuration based on selected corpus type
+    train_corpus_path = config.get('DATA', f'{corpus_type}_corpus_path_train')
+    test_corpus_path = config.get('DATA', f'{corpus_type}_corpus_path_test')
+    train_corpus = read_corpus(train_corpus_path, corpus_type)
+    test_corpus = read_corpus(test_corpus_path, corpus_type)
+
 
     # Share the vocabulary for both GLOVE and W2VEC
     corpus_vocab = train_corpus.vocab
@@ -314,14 +317,18 @@ if __name__ == "__main__":
     train_corpus, dev_corpus = train_corpus.split_corpus()
     # Create coreference resolution model
     logger.info("Creating coref model...")
-    model = CorefModel(
-        embed_dim=config.getint('MODEL', 'embed_dim'),
-        hidden_dim=config.getint('MODEL', 'hidden_dim'),
-        encoder_type=config.get('MODEL', 'encoder_type'),
-        char_vocab=corpus_char_vocab)  # Pass char_vocab directly
+    # model = CorefModel(
+    #     embed_dim=config.getint('MODEL', 'embed_dim'),
+    #     hidden_dim=config.getint('MODEL', 'hidden_dim'),
+    #     encoder_type=config.get('MODEL', 'encoder_type'),
+    #     char_vocab=corpus_char_vocab)  # Pass char_vocab directly
 
-    # train for 150 epochs, each  train 100 documents each doc up to 50 sentences for lstm
-    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=config.getint('TRAINING', 'mehr_steps'))
+    # Determine the steps value based on the dataset in use
+    steps = config.getint('TRAINING', 'mehr_steps') if corpus_type == "Mehr" \
+        else config.getint('TRAINING', 'rcdat_steps')
+
+    # train for 150 epochs, each  train ? documents(steps) each doc up to 50 sentences for lstm
+    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=steps)
 
     logger.info("Training and test corpora loaded successfully.")
     trainer.train(config.getint('TRAINING', 'epochs'))

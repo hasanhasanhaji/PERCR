@@ -386,7 +386,7 @@ def read_corpus(path, corpus_type):
     Returns:
         Corpus: A `Corpus` object containing the loaded documents.
     """
-    load_function = load_mehr_file if corpus_type == "mehr" else load_rcdat_file
+    load_function = load_mehr_file if corpus_type == "Mehr" else load_rcdat_file
     conll_files = glob.glob(os.path.join(path, '*.conll'))
     return Corpus(flatten([load_function(file) for file in conll_files]))
 

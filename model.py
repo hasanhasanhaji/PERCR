@@ -2,6 +2,7 @@ import torch.nn as nn
 import logging
 from conll import *
 from utils import *
+
 logger = logging.getLogger(__name__)
 
 
@@ -350,7 +351,7 @@ class CorefModel(nn.Module):
     It computes coreference links between spans.
     """
 
-    def __init__(self, embed_dim, hidden_dim, encoder_type, char_filters=50, distance_dim=20):
+    def __init__(self, embed_dim, hidden_dim, encoder_type, char_vocab, char_filters=50, distance_dim=20, ):
         super().__init__()
 
         # Define base hyperparameters (applicable to all encoders)
