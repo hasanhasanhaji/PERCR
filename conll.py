@@ -61,7 +61,8 @@ class LazyVectors:
                  cache,
                  skim=None,
                  vocab=None):
-        """  The LazyVectors class is designed to load pre-trained word vectors (like GloVe) efficiently by loading only
+        """  The LazyVectors class is designed to load pre-trained word vectors
+        (like GloVe) efficiently by loading only
         those vectors that are in the specified vocabulary.
         """
         self.__dict__.update(locals())
