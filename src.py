@@ -7,7 +7,7 @@ import torch.nn as nn
 # import torch.nn.functional as F
 from tqdm import tqdm
 import torch.optim as optim
-from conll_mehr import read_corpus, LazyVectors
+from conll import read_corpus, LazyVectors
 from utils import *
 from datetime import datetime
 from subprocess import Popen, PIPE
