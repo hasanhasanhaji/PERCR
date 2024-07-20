@@ -194,7 +194,7 @@ class Document:
         # Get sentence boundaries while avoiding periods within numbers
         sent_idx = []
         for idx, token in enumerate(self.tokens):
-            if token in ['.', '?', '!']:
+            if token in ['.']:
                 # Check if the token is a period not surrounded by digits
                 if not (token == '.' and 0 < idx < len(self.tokens) - 1 and self.tokens[idx - 1].isdigit() and
                         self.tokens[idx + 1].isdigit()):
