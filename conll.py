@@ -1,6 +1,6 @@
 import glob
 import torch
-from torchtext.vocab import Vectors
+import torchtext
 import random
 import os
 import attr
@@ -10,10 +10,11 @@ from utils import flatten
 from cached_property import cached_property
 from copy import deepcopy as c
 from boltons.iterutils import pairwise
-import torchtext
 import configparser
-
 torchtext.disable_torchtext_deprecation_warning()
+from torchtext.vocab import Vectors
+
+
 
 config = configparser.ConfigParser()
 config.read('config.ini')  # Load configuration from file
