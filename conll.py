@@ -1,9 +1,5 @@
 import glob
 import torch
-import torchtext;
-
-torchtext.disable_torchtext_deprecation_warning()
-
 from torchtext.vocab import Vectors
 import random
 import os
@@ -14,6 +10,9 @@ from utils import flatten
 from cached_property import cached_property
 from copy import deepcopy as c
 from boltons.iterutils import pairwise
+import torchtext
+
+torchtext.disable_torchtext_deprecation_warning()
 
 
 @attr.s(frozen=True, repr=False)
@@ -177,14 +176,15 @@ class Document:
         self.tokens = tokens
         self.corefs = corefs
         self.filename = filename
+
         # Filled in at evaluation time.
         self.tags = None
 
     def __getitem__(self, idx):
         """
-        It means you can access tokens and coreferences of a document like this:
-        doc = Document(...)  # Create a Document object
-        token, coref = doc[5]  # Get the token and coreference at index 5
+            It means you can access tokens and coreferences of a document like this:
+            doc = Document(...)  # Create a Document object
+            token, coref = doc[5]  # Get the token and coreference at index 5
         """
         return self.tokens[idx], self.corefs[idx]
 
