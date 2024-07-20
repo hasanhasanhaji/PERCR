@@ -70,10 +70,11 @@ class DocumentEncoder(nn.Module):
     number of filters in the character-level CNN), and n_layers (number of layers in the LSTM) as parameters.
     """
 
-    def __init__(self, hidden_dim, char_filters, char_vocab=None, n_layers=2):
+    def __init__(self, hidden_dim, char_filters,
+                 GLOVE, W2VEC, char_vocab=None, n_layers=2):
         super().__init__()
 
-        #  Unit vector embeddings >>> normalization
+    #  Unit vector embeddings >>> normalization
         logger.info("Start normalizing glove weights.")
         glove_weights = F.normalize(GLOVE.weights())  # unique vocabs ** 300 (glove dim)
         word2vec_weights = F.normalize(W2VEC.weights())
@@ -101,6 +102,7 @@ class DocumentEncoder(nn.Module):
         # Dropout
         self.emb_dropout = nn.Dropout(0.50)
         self.lstm_dropout = nn.Dropout(0.20)  # Applied to the outputs of the LSTM layers.
+
 
     def forward(self, doc):
         """
@@ -131,6 +133,7 @@ class DocumentEncoder(nn.Module):
         states = unpack_and_unpad(output, reorder)
 
         return torch.cat(states, dim=0), torch.cat(embeds, dim=0)
+
 
     def embed(self, sent):
         """ Embed a sentence using GLoVE, word2vec, and character embeddings """
@@ -351,7 +354,9 @@ class CorefModel(nn.Module):
     It computes coreference links between spans.
     """
 
-    def __init__(self, embed_dim, hidden_dim, encoder_type, char_vocab, char_filters=50, distance_dim=20, ):
+    def __init__(self, embed_dim, hidden_dim, encoder_type,
+                 char_vocab, GLOVE, W2VEC, char_filters=50,
+                 distance_dim=20):
         super().__init__()
 
         # Define base hyperparameters (applicable to all encoders)
@@ -370,7 +375,7 @@ class CorefModel(nn.Module):
             self.gij_dim = self.gi_dim * 3 + self.distance_dim
 
             logger.info(f"For Bi-LSTM encoder: span_dim is {self.gi_dim}, pairs_dim is {self.gij_dim}")
-            self.encoder = DocumentEncoder(hidden_dim, char_filters)
+            self.encoder = DocumentEncoder(hidden_dim, char_filters, GLOVE, W2VEC)
             # This module is responsible for scoring individual spans (potential mentions) within the document.
             self.score_spans = MentionScore(self.gi_dim, attn_dim, self.distance_dim)
             # This module is responsible for scoring pairs of spans to determine if they refer to the same entity.

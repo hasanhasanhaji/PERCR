@@ -297,14 +297,12 @@ if __name__ == "__main__":
 
     corpus_type = config.get('DATA', 'corpus_type')
 
-
     logger.info("Reading training and test corpora...")
     # Read corpus paths from configuration based on selected corpus type
     train_corpus_path = config.get('DATA', f'{corpus_type}_corpus_path_train')
     test_corpus_path = config.get('DATA', f'{corpus_type}_corpus_path_test')
     train_corpus = read_corpus(train_corpus_path, corpus_type)
     test_corpus = read_corpus(test_corpus_path, corpus_type)
-
 
     # Share the vocabulary for both GLOVE and W2VEC
     corpus_vocab = train_corpus.vocab
@@ -317,11 +315,13 @@ if __name__ == "__main__":
     train_corpus, dev_corpus = train_corpus.split_corpus()
     # Create coreference resolution model
     logger.info("Creating coref model...")
-    # model = CorefModel(
-    #     embed_dim=config.getint('MODEL', 'embed_dim'),
-    #     hidden_dim=config.getint('MODEL', 'hidden_dim'),
-    #     encoder_type=config.get('MODEL', 'encoder_type'),
-    #     char_vocab=corpus_char_vocab)  # Pass char_vocab directly
+    model = CorefModel(
+        embed_dim=config.getint('MODEL', 'embed_dim'),
+        hidden_dim=config.getint('MODEL', 'hidden_dim'),
+        encoder_type=config.get('MODEL', 'encoder_type'),
+        char_vocab=corpus_char_vocab,
+        GLOVE=GLOVE,
+        W2VEC=W2VEC)  # Pass char_vocab directly
 
     # Determine the steps value based on the dataset in use
     steps = config.getint('TRAINING', 'mehr_steps') if corpus_type == "Mehr" \
