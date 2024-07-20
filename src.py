@@ -310,6 +310,8 @@ if __name__ == "__main__":
 
     # Split the train_corpus into train and dev sets
     train_corpus, dev_corpus = train_corpus.split_corpus()
+    logger.info("Training and test corpora loaded successfully.")
+
     # Create coreference resolution model
     logger.info("Creating coref model...")
     model = CorefModel(
@@ -318,7 +320,7 @@ if __name__ == "__main__":
         encoder_type=config.get('MODEL', 'encoder_type'),
         char_vocab=corpus_char_vocab,
         GLOVE=GLOVE,
-        W2VEC=W2VEC)  # Pass char_vocab directly
+        W2VEC=W2VEC)
 
     # Determine the steps value based on the dataset in use
     steps = config.getint('TRAINING', 'mehr_steps') if corpus_type == "Mehr" \
@@ -327,5 +329,4 @@ if __name__ == "__main__":
     # train for 150 epochs, each  train ? documents(steps) each doc up to 50 sentences for lstm
     trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps)
 
-    logger.info("Training and test corpora loaded successfully.")
     trainer.train(config.getint('TRAINING', 'epochs'))
