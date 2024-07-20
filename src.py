@@ -43,8 +43,6 @@ class Trainer:
                                                    step_size=config.getint('TRAINING', 'scheduler_step_size'),
                                                    gamma=config.getfloat('TRAINING', 'scheduler_gamma'))
 
-        pass
-
     def train(self, num_epochs, eval_interval=5, *args, **kwargs):
         """ Training  the model """
 
