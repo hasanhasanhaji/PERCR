@@ -11,10 +11,9 @@ from cached_property import cached_property
 from copy import deepcopy as c
 from boltons.iterutils import pairwise
 import configparser
+
 torchtext.disable_torchtext_deprecation_warning()
 from torchtext.vocab import Vectors
-
-
 
 config = configparser.ConfigParser()
 config.read('config.ini')  # Load configuration from file
@@ -223,7 +222,7 @@ class Document:
         # Regroup (returns list of lists)
         return [self.tokens[i1:i2] for i1, i2 in pairwise([0] + sent_idx)]
 
-    def truncate(self, MAX=50):
+    def truncate(self, MAX=config.getint('TRAINING', 'max_sentences_per_doc')):
         """ Randomly truncate the document to up to MAX sentences """
         if len(self.sents) > MAX:
             i = random.sample(range(MAX, len(self.sents)), 1)[0]
