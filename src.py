@@ -25,28 +25,26 @@ class Trainer:
     """ Class dedicated to training and evaluating the model
     """
 
-    def __init__(self, model, train_corpus, test_corpus, dev_corpus,
-                 steps, lr=config.getfloat('TRAINING', 'lr')):
-        self.model = to_cuda(model)
+    def __init__(self, final_model, train, test, val,
+                 step, lr=config.getfloat('TRAINING', 'lr')):
 
-        self.train_corpus = list(train_corpus)
-
-        self.val_corpus = dev_corpus
-
-        self.test_corpus = test_corpus
-        self.steps = steps
+        self.model = to_cuda(final_model)
+        self.train_corpus = list(train)
+        self.val_corpus = val
+        self.test_corpus = test
+        self.steps = step
         self.lr = lr
-
         self.optimizer = optim.Adam(
             params=[p for p in self.model.parameters() if p.requires_grad],
             lr=self.lr
         )
-
+        # adjusts the learning rate during training
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer,
-                                                   step_size=100,
-                                                   gamma=0.001)  # adjusts the learning rate during training
+                                                   step_size=config.getint('TRAINING', 'scheduler_step_size'),
+                                                   gamma=config.getfloat('TRAINING', 'scheduler_gamma'))
 
         pass
+
     def train(self, num_epochs, eval_interval=5, *args, **kwargs):
         """ Training  the model """
 
@@ -329,7 +327,7 @@ if __name__ == "__main__":
         else config.getint('TRAINING', 'rcdat_steps')
 
     # train for 150 epochs, each  train ? documents(steps) each doc up to 50 sentences for lstm
-    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps=steps)
+    trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps)
 
     logger.info("Training and test corpora loaded successfully.")
     trainer.train(config.getint('TRAINING', 'epochs'))
