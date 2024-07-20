@@ -168,18 +168,25 @@ class Corpus:
 
 
 class Document:
+    """
+    The class Document for preprocessing documents.
+    """
+
     def __init__(self, raw_text, tokens, corefs, filename):
         self.raw_text = raw_text
         self.tokens = tokens
         self.corefs = corefs
         self.filename = filename
-
         # Filled in at evaluation time.
         self.tags = None
 
     def __getitem__(self, idx):
-        return (self.tokens[idx], self.corefs[idx],
-                )
+        """
+        It means you can access tokens and coreferences of a document like this:
+        doc = Document(...)  # Create a Document object
+        token, coref = doc[5]  # Get the token and coreference at index 5
+        """
+        return self.tokens[idx], self.corefs[idx]
 
     def __repr__(self):
         return 'Document containing %d tokens' % len(self.tokens)
@@ -353,12 +360,6 @@ def load_rcdat_file(filename):
         documents.append(doc)
 
     return documents
-
-
-
-
-
-
 
 
 def read_corpus(path, corpus_type):
