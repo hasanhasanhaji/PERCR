@@ -43,8 +43,10 @@ class Trainer:
                                                    step_size=config.getint('TRAINING', 'scheduler_step_size'),
                                                    gamma=config.getfloat('TRAINING', 'scheduler_gamma'))
 
-    def train(self, num_epochs, eval_interval=5, *args, **kwargs):
-        """ Training  the model """
+    def train(self, num_epochs, eval_interval=config.getint('TRAINING', 'eval_interval'), *args, **kwargs):
+        """
+        Training  the coref model
+        """
 
         for epoch in range(1, num_epochs + 1):
             self.train_epoch(epoch, *args, **kwargs)  # training each epoch
