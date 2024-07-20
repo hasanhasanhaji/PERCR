@@ -146,14 +146,18 @@ class Corpus:
         return 'Corpus containg %d documents' % len(self.docs)
 
     def get_vocab(self):
-        """ Set vocabulary for LazyVectors """
+        """
+        Get the vocab and char vocab of documents.
+        :return:
+        vocab: A set of unique tokens (words) found across all documents in the corpus.
+        char_vocab: A set of unique characters found across all tokens.
+        """
         vocab, char_vocab = set(), set()
         for document in self.docs:
             vocab.update(document.tokens)
             char_vocab.update([char
                                for word in document.tokens
                                for char in word])
-
         return vocab, char_vocab
 
     def split_corpus(self, dev_size=0.1, seed=42):
