@@ -16,13 +16,17 @@ from model import CorefModel
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# initialize configuration file
+config = configparser.ConfigParser()
+config.read('config.ini')  # Load configuration from file
+
 
 class Trainer:
     """ Class dedicated to training and evaluating the model
     """
 
     def __init__(self, model, train_corpus, test_corpus, dev_corpus,
-                 steps, lr=1e-3):
+                 steps, lr=config.getfloat('TRAINING', 'lr')):
         self.model = to_cuda(model)
 
         self.train_corpus = list(train_corpus)
@@ -42,6 +46,7 @@ class Trainer:
                                                    step_size=100,
                                                    gamma=0.001)  # adjusts the learning rate during training
 
+        pass
     def train(self, num_epochs, eval_interval=5, *args, **kwargs):
         """ Training  the model """
 
@@ -291,10 +296,6 @@ class Trainer:
 
 
 if __name__ == "__main__":
-    # initialize configuration file
-    config = configparser.ConfigParser()
-    config.read('config.ini')  # Load configuration from file
-
     corpus_type = config.get('DATA', 'corpus_type')
 
     logger.info("Reading training and test corpora...")

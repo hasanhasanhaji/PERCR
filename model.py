@@ -16,7 +16,7 @@ class CharCNN(nn.Module):
     # 1 for padding and unknown characters.
     pad_size = 15  # Sets the fixed size for padding sequences.
 
-    def __init__(self, filters, char_vocab=None, char_dim=8):
+    def __init__(self, filters, char_vocab, char_dim=8):
         super().__init__()
         self.vocab = char_vocab
         self._stoi = {char: idx + 2 for idx, char in enumerate(
@@ -71,7 +71,7 @@ class DocumentEncoder(nn.Module):
     """
 
     def __init__(self, hidden_dim, char_filters,
-                 GLOVE, W2VEC, char_vocab=None, n_layers=2):
+                 GLOVE, W2VEC, char_vocab, n_layers=2):
         super().__init__()
 
     #  Unit vector embeddings >>> normalization
@@ -375,7 +375,7 @@ class CorefModel(nn.Module):
             self.gij_dim = self.gi_dim * 3 + self.distance_dim
 
             logger.info(f"For Bi-LSTM encoder: span_dim is {self.gi_dim}, pairs_dim is {self.gij_dim}")
-            self.encoder = DocumentEncoder(hidden_dim, char_filters, GLOVE, W2VEC)
+            self.encoder = DocumentEncoder(hidden_dim, char_filters, GLOVE, W2VEC, char_vocab)
             # This module is responsible for scoring individual spans (potential mentions) within the document.
             self.score_spans = MentionScore(self.gi_dim, attn_dim, self.distance_dim)
             # This module is responsible for scoring pairs of spans to determine if they refer to the same entity.
