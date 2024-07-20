@@ -49,7 +49,40 @@ class Trainer:
         """
 
         for epoch in range(1, num_epochs + 1):
-            self.train_epoch(epoch, *args, **kwargs)  # training each epoch
+            logger.info("Training epoch based on batches beginning...")
+            self.model.train()  # Set model to train (enables dropout)
+
+            # Randomly sample documents from the train corpus
+            batch = random.sample(self.train_corpus, self.steps)
+
+            epoch_loss, epoch_mentions, epoch_corefs, epoch_identified = [], [], [], []
+
+            for document in tqdm(batch):
+                # Randomly truncate document to up to 50 sentences
+
+                doc = document.truncate()  # discard docs with more than 50 sentences
+
+                # Compute loss, number gold links found, total gold links
+                loss, mentions_found, total_mentions, \
+                    corefs_found, total_corefs, corefs_chosen = self.train_doc(doc)
+                # to compute the loss and various metrics for the truncated document.
+
+                # Track stats by document for debugging
+                print(document, '| Loss: %f | Mentions: %d/%d | Coref recall: %d/%d | Corefs precision: %d/%d' \
+                      % (loss, mentions_found, total_mentions,
+                         corefs_found, total_corefs, corefs_chosen, total_corefs))
+
+                epoch_loss.append(loss)  # Adds the document's loss to the epoch_loss list.
+                epoch_mentions.append(safe_divide(mentions_found, total_mentions))
+                epoch_corefs.append(safe_divide(corefs_found, total_corefs))
+                epoch_identified.append(safe_divide(corefs_chosen, total_corefs))
+
+            # Step the learning rate decrease scheduler
+            self.scheduler.step()
+
+            print('Epoch: %d | Loss: %f | Mention recall: %f | Coref recall: %f | Coref precision: %f' \
+                  % (epoch, np.mean(epoch_loss), np.mean(epoch_mentions),
+                     np.mean(epoch_corefs), np.mean(epoch_identified)))
 
             logger.info(" Start saving the model.")
             self.save_model(str(datetime.now()))  # save the model with a filename based on the current date and time.
@@ -63,44 +96,6 @@ class Trainer:
                 #  Evaluates the model on the validation corpus and stores the results.
                 results = self.evaluate(self.val_corpus)
                 print(results)
-
-    def train_epoch(self, epoch):
-        """ Run a training epoch over 'steps' documents """
-        # Set model to train (enables dropout)
-        logger.info("Training epoch based on batches beginning...")
-        self.model.train()
-
-        # Randomly sample documents from the train corpus
-        batch = random.sample(self.train_corpus, self.steps)
-
-        epoch_loss, epoch_mentions, epoch_corefs, epoch_identified = [], [], [], []
-
-        for document in tqdm(batch):
-            # Randomly truncate document to up to 50 sentences
-
-            doc = document.truncate()  # discard docs with more than 50 sentences
-
-            # Compute loss, number gold links found, total gold links
-            loss, mentions_found, total_mentions, \
-                corefs_found, total_corefs, corefs_chosen = self.train_doc(doc)
-            # to compute the loss and various metrics for the truncated document.
-
-            # Track stats by document for debugging
-            print(document, '| Loss: %f | Mentions: %d/%d | Coref recall: %d/%d | Corefs precision: %d/%d' \
-                  % (loss, mentions_found, total_mentions,
-                     corefs_found, total_corefs, corefs_chosen, total_corefs))
-
-            epoch_loss.append(loss)  # Adds the document's loss to the epoch_loss list.
-            epoch_mentions.append(safe_divide(mentions_found, total_mentions))
-            epoch_corefs.append(safe_divide(corefs_found, total_corefs))
-            epoch_identified.append(safe_divide(corefs_chosen, total_corefs))
-
-        # Step the learning rate decrease scheduler
-        self.scheduler.step()
-
-        print('Epoch: %d | Loss: %f | Mention recall: %f | Coref recall: %f | Coref precision: %f' \
-              % (epoch, np.mean(epoch_loss), np.mean(epoch_mentions),
-                 np.mean(epoch_corefs), np.mean(epoch_identified)))
 
     def train_doc(self, document):
         """
@@ -120,8 +115,6 @@ class Trainer:
         # probs == These are the probabilities associated with each span,
         # indicating the model's confidence that the span is a coreference mention.
         spans, probs = self.model(document)
-
-        pass
 
         # Get log-likelihood of correct antecedents implied by gold clustering
         gold_indexes = to_cuda(torch.zeros_like(probs))
