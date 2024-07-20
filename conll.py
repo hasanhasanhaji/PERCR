@@ -11,8 +11,12 @@ from cached_property import cached_property
 from copy import deepcopy as c
 from boltons.iterutils import pairwise
 import torchtext
+import configparser
 
 torchtext.disable_torchtext_deprecation_warning()
+
+config = configparser.ConfigParser()
+config.read('config.ini')  # Load configuration from file
 
 
 @attr.s(frozen=True, repr=False)
@@ -161,8 +165,11 @@ class Corpus:
                                for char in word])
         return vocab, char_vocab
 
-    def split_corpus(self, dev_size=0.1, seed=42):
+    def split_corpus(self, dev_size=None, seed=42):
         """ Split the corpus into training and development sets """
+        if dev_size is None:  # Check if dev_size was provided
+            # Load dev_size from configuration
+            dev_size = config.getfloat('TRAINING', 'dev_size')
         random.seed(seed)
         random.shuffle(self.docs)
         split_idx = int(len(self.docs) * (1 - dev_size))
