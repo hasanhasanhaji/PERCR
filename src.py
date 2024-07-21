@@ -304,6 +304,15 @@ class Trainer:
         return golds_file, preds_file
 
 
+def get_latest_model_path(model_dir):
+    models = [f for f in os.listdir(model_dir) if f.endswith('.pth')]
+    if models:
+        latest_model = max(models, key=lambda f: os.path.getctime(os.path.join(model_dir, f)))
+        return os.path.join(model_dir, latest_model)
+    else:
+        return None
+
+
 if __name__ == "__main__":
     corpus_type = config.get('DATA', 'corpus_type')
 
@@ -341,5 +350,11 @@ if __name__ == "__main__":
 
     # train for 150 epochs, each  train ? documents(steps) each doc up to 50 sentences for lstm
     trainer = Trainer(model, train_corpus, test_corpus, dev_corpus, steps)
+
+    # Check for existing model to resume training
+    model_dir = config.get('DATA', 'model_address')
+    existing_model = get_latest_model_path(model_dir)  # Function to find latest .pth file
+    if existing_model:
+        trainer.load_model(existing_model)  # Load the model if found
 
     trainer.train(config.getint('TRAINING', 'epochs'))
