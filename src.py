@@ -67,19 +67,33 @@ class Trainer:
                     corefs_found, total_corefs, corefs_chosen = self.train_doc(doc)
                 # to compute the loss and various metrics for the truncated document.
 
-                # Track stats by document for debugging
+                # Tracking and Logging Per-Document Statistics
+                # Loss: The loss value for the document, indicating how well the model's predictions
+                # match the true coreference.
+                # Mentions: %d/%d: The number of mentions the model found correctly (mentions_found / total_mentions)
+                # Coref recall: %d/%d The number of coreference links the model found correctly (corefs_found)
+                # out of the total number of true coreference links (total_corefs).
+                # Corefs precision: %d/%d: The number of coreference links the model predicted correctly
+                # (corefs_chosen) out of the total number of coreference links the model predicted (total_corefs).
                 print(document, '| Loss: %f | Mentions: %d/%d | Coref recall: %d/%d | Corefs precision: %d/%d' \
                       % (loss, mentions_found, total_mentions,
                          corefs_found, total_corefs, corefs_chosen, total_corefs))
 
                 epoch_loss.append(loss)  # Adds the document's loss to the epoch_loss list.
+                # Stores the mention recall for all documents in the epoch.
                 epoch_mentions.append(safe_divide(mentions_found, total_mentions))
+                #  Stores the coreference recall for all documents in the epoch.
                 epoch_corefs.append(safe_divide(corefs_found, total_corefs))
+                # Stores the coreference precision for all documents in the epoch.
                 epoch_identified.append(safe_divide(corefs_chosen, total_corefs))
 
             # Step the learning rate decrease scheduler
             self.scheduler.step()
 
+            # Loss = The average loss over all documents processed in the epoch.
+            # Mention recall= The average recall for mention detection
+            # Coref recall: The average recall for coreference linking
+            # Coref precision: The average precision for coreference linking
             print('Epoch: %d | Loss: %f | Mention recall: %f | Coref recall: %f | Coref precision: %f' \
                   % (epoch, np.mean(epoch_loss), np.mean(epoch_mentions),
                      np.mean(epoch_corefs), np.mean(epoch_identified)))
@@ -146,9 +160,7 @@ class Trainer:
         eps = 1e-8
         loss = torch.sum(torch.log(torch.sum(torch.mul(probs, gold_indexes), dim=1).clamp(min=eps, max=1 - eps)) * -1)
 
-        pass
-
-        # Backpropagate
+        # Backpropagation
         loss.backward()
 
         # Step the optimizer
@@ -159,7 +171,7 @@ class Trainer:
 
     def save_model(self, savepath):
         """ Save model state dictionary """
-        model_dir = "data/model/"
+        model_dir = config.get('DATA', 'model_address')
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
         valid_savepath = os.path.join(model_dir, savepath.replace(":", "-") + '.pth')
@@ -167,9 +179,15 @@ class Trainer:
 
     def load_model(self, loadpath):
         """ Load state dictionary into model """
-        state = torch.load(loadpath)
-        self.model.load_state_dict(state)
-        self.model = to_cuda(self.model)
+        try:
+            state_dict = torch.load(loadpath)
+            self.model.load_state_dict(state_dict)
+            self.model = to_cuda(self.model)
+            logger.info(f"Model successfully loaded from {loadpath}")
+        except FileNotFoundError:
+            logger.warning(f"No model found at {loadpath}. Starting training from scratch.")
+        except Exception as e:  # Catching broader exceptions for robustness
+            logger.error(f"Error loading model: {e}. Starting training from scratch.")
 
     def evaluate(self, val_corpus, eval_script='eval/scorer.pl'):
         """ Evaluate a corpus of CoNLL-2012 gold files """
