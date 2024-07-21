@@ -103,7 +103,7 @@ class Trainer:
 
             # Evaluate every eval_interval epochs
             if epoch % eval_interval == 0:
-                logger.info(" Evaluating every 10 epoch...")
+                logger.info(f" Evaluating every {eval_interval} epoch...")
                 print('\n\nEVALUATION\n\n')
                 self.model.eval()  # Sets the model to evaluation mode.
 
@@ -111,6 +111,15 @@ class Trainer:
                 results = self.evaluate(self.val_corpus)
                 print(results)
 
+        # Final Evaluation on Test Set
+        logger.info("\n\nFINAL EVALUATION ON TEST SET\n\n")
+        self.model.eval()  # Set the model to evaluation mode
+        test_results = self.evaluate(self.test_corpus)
+        print(test_results)
+
+        # Optionally, save test results to a file
+        with open('data/preds/test_results.txt', 'w+') as f:
+            f.write(test_results)
     def train_doc(self, document):
         """
         Compute loss for a forward pass over a document
