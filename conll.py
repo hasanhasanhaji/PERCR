@@ -362,8 +362,7 @@ def load_rcdat_file(filename):
 
                 # Handle leftover label after the loop (single-token coreference)
                 if label:
-                    corefs.append({'label': label, 'start': len(tokens) - 1, 'end': len(tokens) - 1,
-                                   'span': (corefs[i]['start'], i)})
+                    corefs.append({'label': label, 'start': len(tokens) - 1, 'end': len(tokens) - 1})
 
         # Add a period to the last token of the document
         if tokens:  # Ensure there are tokens in the document
