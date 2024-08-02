@@ -22,20 +22,24 @@ def to_cuda(x):
 def extract_gold_corefs(document):
     """ Parse coreference dictionary of a document to get coref links """
 
-    # Initialize defaultdict for keeping track of corefs
+    # Initialize default-dict for keeping track of corefs
+    # keys are coreference labels
+    # values: lists to store the mentions (spans of text) that refer to each entity.
     gold_links = defaultdict(list)
 
-    # Compute number of mentions
+    # Compute number of unique mentions
     gold_mentions = set([coref['span'] for coref in document.corefs])
     total_mentions = len(gold_mentions)
 
     # Compute number of coreferences
     for coref_entry in document.corefs:
-        # Parse label of coref span, the span itself
-        label, span_idx = coref_entry['label'], coref_entry['span']
+        # Check if 'span' key exists
+        if 'span' in coref_entry:
+            # Parse label of coref span, the span itself
+            label, span_idx = coref_entry['label'], coref_entry['span']
 
-        # All spans corresponding to the same label
-        gold_links[label].append(span_idx)  # get all spans corresponding to some label
+            # All spans corresponding to the same label
+            gold_links[label].append(span_idx)  # get all spans corresponding to some label
 
     # Flatten all possible corefs, sort, get number
     gold_corefs = flatten([[coref
@@ -43,7 +47,10 @@ def extract_gold_corefs(document):
                            for gold in gold_links.values()])
     gold_corefs = sorted(gold_corefs)
     total_corefs = len(gold_corefs)
-
+    # gold_corefs: The list of coreference pairs.
+    # total_corefs: The total number of coreference pairs.
+    # gold_mentions: The set of unique mentions.
+    # total_mentions: The total number of unique mentions.
     return gold_corefs, total_corefs, gold_mentions, total_mentions
 
 

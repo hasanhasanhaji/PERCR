@@ -74,6 +74,10 @@ class DocumentEncoder(nn.Module):
                  GLOVE, W2VEC, char_vocab, n_layers=2):
         super().__init__()
 
+        # Store GLOVE and W2VEC as class attributes to be used later in embed function
+        self.GLOVE = GLOVE
+        self.W2VEC = W2VEC
+
     #  Unit vector embeddings >>> normalization
         logger.info("Start normalizing glove weights.")
         glove_weights = F.normalize(GLOVE.weights())  # unique vocabs ** 300 (glove dim)
@@ -139,10 +143,10 @@ class DocumentEncoder(nn.Module):
         """ Embed a sentence using GLoVE, word2vec, and character embeddings """
 
         # Embed the tokens with Glove
-        glove_embeds = self.glove(lookup_tensor(sent, GLOVE))
+        glove_embeds = self.glove(lookup_tensor(sent, self.GLOVE))
 
-        # Embed again using Turian this time
-        word2vec_embeds = self.word2vec(lookup_tensor(sent, W2VEC))
+        # Embed again using W2VEC this time
+        word2vec_embeds = self.word2vec(lookup_tensor(sent, self.W2VEC))
 
         # Character embeddings
         char_embeds = self.char_embeddings(sent)

@@ -120,10 +120,13 @@ class Trainer:
         # Optionally, save test results to a file
         with open('data/preds/test_results.txt', 'w+') as f:
             f.write(test_results)
+
     def train_doc(self, document):
         """
         Compute loss for a forward pass over a document
         """
+        # gold_corefs: The list of coreference pairs.
+        # gold_mentions: The set of unique mentions.
         gold_corefs, total_corefs, \
             gold_mentions, total_mentions = extract_gold_corefs(document)
 
