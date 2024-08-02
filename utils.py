@@ -180,7 +180,7 @@ def pairwise_indexes(spans):
     indexes = [sum(indexes[:idx + 1]) for idx, _ in enumerate(indexes)]
     return pairwise(indexes)
 
+
 def to_var(x):
     """ Convert a tensor to a backprop tensor and put on GPU """
     return to_cuda(x).requires_grad_()
-
