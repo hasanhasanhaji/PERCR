@@ -328,7 +328,6 @@ def get_latest_model_path(model_dir):
 if __name__ == "__main__":
     corpus_type = config.get('DATA', 'corpus_type')
 
-    logger.info("Reading training and test corpora...")
     # Read corpus paths from configuration based on selected corpus type
     train_corpus_path = config.get('DATA', f'{corpus_type}_corpus_path_train')
     test_corpus_path = config.get('DATA', f'{corpus_type}_corpus_path_test')
