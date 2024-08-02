@@ -312,26 +312,24 @@ def load_mehr_file(filename):
 
 
 def load_rcdat_file(filename):
-    """Loads and processes an RCDAT CoNLL file."""
-
     documents = []
     current_sentence_index = 0
     with io.open(filename, 'rt', encoding='utf-8', errors='strict') as f:
         raw_text, tokens, utts_corefs, corefs = [], [], [], []
-        current_chain = None  # Track the ongoing coreference chain
+        current_chain = None
 
         for line in f:
             raw_text.append(line)
             cols = line.split()
-            if not cols:  # Skip empty lines
+            if not cols:
                 continue
 
             sentence_index = int(cols[1])
-            if sentence_index != current_sentence_index:  # New sentence
+            if sentence_index != current_sentence_index:
                 utts_corefs.extend(corefs)
                 corefs = []
                 current_sentence_index = sentence_index
-                current_chain = None  # Reset the chain for the new sentence
+                current_chain = None
 
             token = cols[3]
             tokens.append(token)
@@ -345,34 +343,30 @@ def load_rcdat_file(filename):
                     char = coref_column[i]
                     if char.isdigit():
                         label += char
-                    elif char == '(':  # Opening parenthesis
+                    elif char == '(':
                         if current_chain is None or current_chain['label'] != label:
                             current_chain = {'label': label, 'start': len(tokens) - 1, 'end': None}
                             corefs.append(current_chain)
-                        label = ""  # Reset label for potential next coreference
-                    elif char == ')':  # Closing parenthesis
+                        label = ""
+                    elif char == ')':
                         if current_chain is not None and current_chain['label'] == label:
                             current_chain['end'] = len(tokens) - 1
+                            current_chain['span'] = (current_chain['start'], current_chain['end'])  # Update span here
                             current_chain = None
-                        label = ""  # Reset label
+                        label = ""
                     elif char == '*':
                         pass
 
                     i += 1
 
-                # Handle leftover label after the loop (single-token coreference)
-                if label:
-                    corefs.append({'label': label, 'start': len(tokens) - 1, 'end': len(tokens) - 1,
-                                   'span': (corefs[i]['start'], i)})
-
-        # Add a period to the last token of the document
-        if tokens:  # Ensure there are tokens in the document
-            tokens.append('.')
-        # Add the last document
+        if tokens:
+            tokens.append('.')  # Add period to the last sentence
+        utts_corefs.extend(corefs)  # Add corefs from last sentence to the document
         doc = Document(raw_text, tokens, utts_corefs, filename)
         documents.append(doc)
 
     return documents
+
 
 
 def read_corpus(path, corpus_type):
