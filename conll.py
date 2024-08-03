@@ -201,7 +201,7 @@ class Document:
         return self.tokens[idx], self.corefs[idx]
 
     def __repr__(self):
-        return 'Document containing %d tokens' % len(self.tokens)
+        return f'Document {self.filename} containing {len(self.tokens)} tokens'
 
     def __len__(self):
         return len(self.tokens)
