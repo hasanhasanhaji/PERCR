@@ -294,7 +294,6 @@ def load_mehr_file(filename):
                                                   'span': (corefs[i]['start'], index),
                                                   'string': " ".join(doc_tokens[corefs[i]['start']: index + 1])
                                                   })
-
                     index += 1  # go to the next token
                 else:
                     continue
@@ -302,7 +301,6 @@ def load_mehr_file(filename):
                 index += 1
                 print(filename)
                 print(f"Error processing line: {line}")  # Print the line causing the error
-
                 continue  # Continue to the next line after logging the error
                 # print("Error occurred while processing line:")
 
