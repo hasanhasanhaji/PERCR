@@ -256,7 +256,7 @@ def load_mehr_file(filename):
         # utts_corefs: List of coreference information for the current document.
         # tokens: List of individual tokens of current document.
         # text : List of individual tokens of current sentence.
-        raw_text, tokens, text, utts_corefs, corefs, index = [], [], [], [], [], 0
+        raw_text, doc_tokens, corefs, index = [], [], [], 0
         for line in f:
             raw_text.append(line)
             cols = line.split()
