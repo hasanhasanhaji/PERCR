@@ -148,7 +148,7 @@ class Corpus:
         return self.docs[idx]
 
     def __repr__(self):
-        return 'Corpus containg %d documents' % len(self.docs)
+        return 'The Corpus contains %d documents' % len(self.docs)
 
     def get_vocab(self):
         """
