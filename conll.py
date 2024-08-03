@@ -263,26 +263,23 @@ def load_mehr_file(filename):
             try:
                 # End of sentence within a document for MEHR corpus.
                 if len(cols) == 0:
-                    if text:
-                        tokens.extend(text), utts_corefs.extend(corefs)
-                        text, corefs = [], []
-                        continue
+                    continue
                 # End of document: organize the data, append to output, reset variables for next document.
                 elif len(cols) == 2:
-                    doc = Document(raw_text, tokens, utts_corefs, filename)
+                    doc = Document(raw_text, doc_tokens, corefs, filename)
                     documents.append(doc)
-                    raw_text, tokens, text, utts_corefs, index = [], [], [], [], 0
+                    raw_text, doc_tokens, corefs, index = [], [], [], 0
                 # If the line has more than seven columns, it's assumed to be a token line.
                 elif len(cols) > 7:
-                    text.append(cols[3])  # add token to current line tokens
+                    doc_tokens.append(cols[3])  # add token to current line tokens
                     # If the last column isn't a '-', there is a coreference link
                     if cols[-1] != u'-':
                         coref_expr = cols[-1].split(u'|')
+
                         for token in coref_expr:
                             # Check if coref column token entry contains (, a number, or ).
                             match = re.match(r"^(\(?)(\d+)(\)?)$", token)
-                            label = match.group(2)
-
+                            label = match.group(2)  # the chain number
                             # If it does, extract the coref label, its start index,
                             if match.group(1) == u'(':  # start of coref expression
                                 corefs.append({'label': label,
@@ -294,12 +291,13 @@ def load_mehr_file(filename):
                                         break
                                 # Extract the end index, include start and end indexes in 'span'
                                 corefs[i].update({'end': index,
-                                                  'span': (corefs[i]['start'], index)})
-                    index += 1
+                                                  'span': (corefs[i]['start'], index),
+                                                  'string': " ".join(doc_tokens[corefs[i]['start']: index + 1])
+                                                  })
+
+                    index += 1  # go to the next token
                 else:
                     continue
-
-
             except Exception as e:
                 index += 1
                 print(filename)
