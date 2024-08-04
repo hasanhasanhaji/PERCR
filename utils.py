@@ -28,7 +28,11 @@ def extract_gold_corefs(document):
     gold_links = defaultdict(list)
 
     # Compute number of unique mentions
-    gold_mentions = set([coref['span'] for coref in document.corefs])
+    gold_mentions = set()
+    for coref in document.corefs:
+        if 'span' in coref:
+            gold_mentions.add(coref['span'])
+
     total_mentions = len(gold_mentions)
 
     # Compute number of coreferences

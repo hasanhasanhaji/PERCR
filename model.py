@@ -411,12 +411,8 @@ class CorefModel(nn.Module):
                     Predict pairwise coreference scores
         """
 
-        # Encode the document, keep the LSTM hidden states and embedded tokens
-        # states == These are the hidden states from the LSTM,
-        # which capture the sequential and contextual information of the document.
+        # states == These are span embeddings from output of bi-lstm
         # embeds == These are the original token embeddings,
-        # which are dense vector representations of the tokens without contextual information.
-        logger.info(f"Encode document {doc.filename}")
         states, embeds = self.encoder(doc)
 
         # Get mention scores for each span, prune
