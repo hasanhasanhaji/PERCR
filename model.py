@@ -79,9 +79,8 @@ class DocumentEncoder(nn.Module):
         self.W2VEC = W2VEC
 
     #  Unit vector embeddings >>> normalization
-        logger.info("Start normalizing glove weights.")
         glove_weights = F.normalize(GLOVE.weights())  # unique vocabs ** 300 (glove dim)
-        word2vec_weights = F.normalize(W2VEC.weights())
+        word2vec_weights = F.normalize(W2VEC.weights()) # unique vocabs ** 50 (word2vec dim)
 
         # GLoVE
         self.glove = nn.Embedding(glove_weights.shape[0], glove_weights.shape[1])
@@ -378,7 +377,7 @@ class CorefModel(nn.Module):
             # gi, gj, gi*gj, distance between gi and gj
             self.gij_dim = self.gi_dim * 3 + self.distance_dim
 
-            logger.info(f"For Bi-LSTM encoder: span_dim is {self.gi_dim}, pairs_dim is {self.gij_dim}")
+            # logger.info(f"For Bi-LSTM encoder: span_dim is {self.gi_dim}, pairs_dim is {self.gij_dim}")
             self.encoder = DocumentEncoder(hidden_dim, char_filters, GLOVE, W2VEC, char_vocab)
             # This module is responsible for scoring individual spans (potential mentions) within the document.
             self.score_spans = MentionScore(self.gi_dim, attn_dim, self.distance_dim)
