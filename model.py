@@ -3,7 +3,12 @@ import logging
 from conll import *
 from utils import *
 
+# logger options
 logger = logging.getLogger(__name__)
+
+# --- Load Configuration ---
+config = configparser.ConfigParser()
+config.read('config.ini')
 
 
 class CharCNN(nn.Module):
@@ -14,9 +19,9 @@ class CharCNN(nn.Module):
     unk_idx = 1  # Sets the index for unknown characters.
 
     # 1 for padding and unknown characters.
-    pad_size = 15  # Sets the fixed size for padding sequences.
+    pad_size = config.getint('MODEL', 'char_pad_size')  # Sets the fixed size for padding sequences.
 
-    def __init__(self, filters, char_vocab, char_dim=8):
+    def __init__(self, filters, char_vocab, char_dim=config.getint('MODEL', 'char_dim')):
         super().__init__()
         self.vocab = char_vocab
         self._stoi = {char: idx + 2 for idx, char in enumerate(
@@ -71,16 +76,16 @@ class DocumentEncoder(nn.Module):
     """
 
     def __init__(self, hidden_dim, char_filters,
-                 GLOVE, W2VEC, char_vocab, n_layers=2):
+                 GLOVE, W2VEC, char_vocab, n_layers=config.getint('MODEL', 'n_lstm_layers')):
         super().__init__()
 
         # Store GLOVE and W2VEC as class attributes to be used later in embed function
         self.GLOVE = GLOVE
         self.W2VEC = W2VEC
 
-    #  Unit vector embeddings >>> normalization
+        #  Unit vector embeddings >>> normalization
         glove_weights = F.normalize(GLOVE.weights())  # unique vocabs ** 300 (glove dim)
-        word2vec_weights = F.normalize(W2VEC.weights()) # unique vocabs ** 50 (word2vec dim)
+        word2vec_weights = F.normalize(W2VEC.weights())  # unique vocabs ** 50 (word2vec dim)
 
         # GLoVE
         self.glove = nn.Embedding(glove_weights.shape[0], glove_weights.shape[1])
@@ -103,9 +108,9 @@ class DocumentEncoder(nn.Module):
                             batch_first=True)
 
         # Dropout
-        self.emb_dropout = nn.Dropout(0.50)
-        self.lstm_dropout = nn.Dropout(0.20)  # Applied to the outputs of the LSTM layers.
-
+        self.emb_dropout = nn.Dropout(config.getfloat('TRAINING', 'emb_dropout '))
+        self.lstm_dropout = nn.Dropout(
+            config.getfloat('TRAINING', 'lstm_dropout'))  # Applied to the outputs of the LSTM layers.
 
     def forward(self, doc):
         """
@@ -136,7 +141,6 @@ class DocumentEncoder(nn.Module):
         states = unpack_and_unpad(output, reorder)
 
         return torch.cat(states, dim=0), torch.cat(embeds, dim=0)
-
 
     def embed(self, sent):
         """ Embed a sentence using GLoVE, word2vec, and character embeddings """
@@ -170,10 +174,10 @@ class Score(nn.Module):
         self.score = nn.Sequential(
             nn.Linear(embeds_dim, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(0.20),
+            nn.Dropout(config.getfloat('TRAINING', '')),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(0.20),
+            nn.Dropout(config.getfloat('TRAINING', '')),
             nn.Linear(hidden_dim, 1)
         )
 
@@ -358,7 +362,7 @@ class CorefModel(nn.Module):
     """
 
     def __init__(self, embed_dim, hidden_dim, encoder_type,
-                 char_vocab, GLOVE, W2VEC, char_filters=50,
+                 char_vocab, GLOVE, W2VEC, char_filters=config.getint('MODEL', 'char_filters'),
                  distance_dim=20):
         super().__init__()
 
