@@ -11,6 +11,7 @@ from datetime import datetime
 from subprocess import Popen, PIPE
 import networkx as nx
 from model import CorefModel
+from pathlib import Path
 
 # configure logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -364,6 +365,9 @@ if __name__ == "__main__":
 
     # Check for existing model to resume training
     model_dir = config.get('DATA', 'model_address')
+    if not os.path.exists(model_dir):  # Check if directory exists
+        Path(model_dir).mkdir(parents=True, exist_ok=True)  # Create the directory and its parents if needed
+
     existing_model = get_latest_model_path(model_dir)  # Function to find latest .pth file
     if existing_model:
         trainer.load_model(existing_model)  # Load the model if found
