@@ -222,7 +222,7 @@ class Document:
         # Regroup (returns list of lists)
         return [self.tokens[i1:i2] for i1, i2 in pairwise([0] + sent_idx)]
 
-    def truncate(self, MAX=config.getint('TRAINING', 'max_sentences_per_doc')):
+    def truncate(self, MAX=config.getint('MODEL', 'max_sentences_per_doc')):
         """ Randomly truncate the document to up to MAX sentences """
         if len(self.sents) > MAX:
             i = random.sample(range(MAX, len(self.sents)), 1)[0]
